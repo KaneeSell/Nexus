@@ -579,6 +579,7 @@ export function NexusTuiApp({
     [
       controller,
       data.commands,
+      data.detectedTools,
       data.pipelines,
       exit,
       resolveSelectedProjectPath,
@@ -591,20 +592,7 @@ export function NexusTuiApp({
 
   useInput(
     (input, key) => {
-      const visibleLogLines = useMemo(() => {
-    const joined = runLogs.map((l) => ({ stream: l.stream, chunk: l.chunk }));
-    const lines: Array<{ stream: RunLogEvent['stream']; text: string }> = [];
-    for (const entry of joined) {
-      for (const line of entry.chunk.split(/\r?\n/)) {
-        if (line.trim().length > 0) {
-          lines.push({ stream: entry.stream, text: line });
-        }
-      }
-    }
-    return lines.slice(-8);
-  }, [runLogs]);
-
-  if (!bootDone) {
+      if (!bootDone) {
         setBootProgress(100);
         setBootDone(true);
         return;
@@ -773,7 +761,7 @@ export function NexusTuiApp({
   );
 
   const spinner = SPINNER_FRAMES[tick % SPINNER_FRAMES.length];
-  const terminalCols = stdout?.columns ?? 100;
+  const terminalCols = stdout.columns ?? 100;
   const compactMode = terminalCols < 88;
   const revealLines = bootDone
     ? LOGO_LINES.length
