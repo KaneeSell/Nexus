@@ -40,6 +40,9 @@ O próprio aplicativo verifica novas versões no GitHub Releases e exibe um avis
 
 - [Arquitetura e Banco de Dados](docs/ARCHITECTURE.md)
 - [Referência Completa do CLI e TUI](docs/CLI.md)
+- [Guia de Desenvolvimento e Continuidade](docs/DEVELOPMENT.md) — setup em novo PC e armadilhas já resolvidas
+- [Fluxo e Boas Práticas de Git](docs/GIT_WORKFLOW.md) — commits, branches, SemVer e releases
+- [Guia de Contribuição](CONTRIBUTING.md)
 - [Roadmap do Produto](docs/ROADMAP.md) e [Roadmap CLI/TUI](docs/CLI_TUI_ROADMAP.md)
 - [Histórico de Versões (Changelog)](CHANGELOG.md)
 
