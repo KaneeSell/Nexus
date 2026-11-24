@@ -46,7 +46,11 @@ npm.cmd run build
 | `npm.cmd run tui` | Compila e abre o cockpit TUI (`Ink`) no terminal |
 | `node bin/nexus.mjs` | Executa o entrypoint oficial do CLI (abre TUI sem args; abre Electron com `.`) |
 | `node bin/nexus.mjs projects --sync` | Sincroniza e lista projetos salvos no SQLite |
-| `npm.cmd run typecheck` | Checa tipos de todo o projeto (`main`, `preload`, `renderer`, `cli`, `shared`) |
+| `npm.cmd run typecheck` | Checa tipos de todo o projeto (`main`, `preload`, `renderer`, `cli`, `shared`, `tests`) |
+| `npm.cmd run test` | Executa a suíte de testes automatizados com Vitest |
+| `npm.cmd run test:watch` | Executa os testes em modo observação durante o desenvolvimento |
+| `npm.cmd run test:coverage` | Executa todos os testes exigindo 100% de cobertura por arquivo (`vitest.config.ts`) |
+| `npm.cmd run verify` | Portão completo pré-commit: `typecheck` + `test:coverage` + `build` |
 | `npm.cmd run build` | Compila Electron + `out/cli/index.js` + `out/cli/tui.mjs` autossuficiente |
 | `npm.cmd run dist:win` | Gera instaladores `.exe` (NSIS) e `.msi` (WiX) em `dist/` |
 
@@ -59,9 +63,9 @@ npm.cmd run build
 2. **Bundle autossuficiente da TUI (`scripts/build-cli.mjs`):**
    - `out/cli/tui.mjs` vai para `resources/cli/tui.mjs` **fora do `app.asar`** no app instalado. Por isso `ink` e `react` precisam ser empacotados dentro de `tui.mjs`, com `react-devtools-core` stubado e `createRequire(import.meta.url)` no banner.
    - Além disso, `src/cli/tui/esmShim.ts` define `__filename` e `__dirname` em `globalThis` usando `import.meta.url` (corrigindo `createRequire(__filename)` em `prisma.ts`).
-3. **Ink em streams não-TTY (`src/cli/tui/NexusTuiApp.tsx`):**
+3. **Ink em streams não-TTY e Rules of Hooks (`src/cli/tui/NexusTuiApp.tsx`):**
    - Sempre proteja `useInput` com `{ isActive: Boolean(isRawModeSupported) }` via `useStdin()`, evitando crash quando executado em consoles em pipe.
-   - Nunca chame hooks (`useMemo`, `useEffect`, etc.) após um `return` condicional (como o `if (!bootDone)`).
+   - Nunca chame hooks (`useMemo`, `useEffect`, etc.) dentro do callback do `useInput`, em handlers ou após um `return` condicional (como o `if (!bootDone)`), para evitar o erro `Minified React error #321` em produção.
 4. **Spawn de Terminal e Ferramentas no Windows (`src/main/system/toolDetector.ts`):**
    - Nunca passe `cd /d "..."` dentro de argumentos do `cmd.exe /c start` (aspas quebram no `CreateProcess`). Use `wt.exe -d <dir>` ou passe `cwd: resolvedPath` no `spawn`.
 5. **Empacotamento Windows/Linux (`package.json` + `electron-builder.yml`):**

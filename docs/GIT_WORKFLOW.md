@@ -54,20 +54,22 @@ Use o formato:
 
 ## 3. Checklist Obrigatório Antes de Todo Commit
 
-1. **Validar tipagem e build:**
+1. **Validar tipagem, testes (100% de cobertura) e build:**
    ```powershell
-   npm.cmd run typecheck
-   npm.cmd run build
+   npm.cmd run verify
    ```
+   *(Executa `typecheck`, `test:coverage` com exigência de 100% em `vitest.config.ts` e `build` completo.)*
 2. **Conferir `git status` e `git diff`:**
    Garanta que **nunca** entrem no commit:
    - `.env` (contém `DATABASE_URL` local)
    - `prisma/*.db` ou `prisma/*.db-journal`
-   - `out/`, `dist/`, `node_modules/`
-3. **Atualizar a documentação quando mudar comportamento:**
+   - `out/`, `dist/`, `coverage/`, `node_modules/`
+3. **Atualizar a documentação e testes quando mudar comportamento:**
+   - Criou ou alterou módulos em `src/`? Adicione/atualize testes em `tests/` e inclua o arquivo em `coverage.include` no [`vitest.config.ts`](../vitest.config.ts) com 100% de cobertura.
    - Mudou flags ou comandos? Atualize [docs/CLI.md](CLI.md).
    - Mudou schema, IPC ou arquitetura? Atualize [docs/ARCHITECTURE.md](ARCHITECTURE.md).
    - Fez mudança relevante para o usuário? Registre em [CHANGELOG.md](../CHANGELOG.md).
+   - Siga também o guia completo em [docs/QUALITY_WORKFLOW.md](QUALITY_WORKFLOW.md).
 
 ---
 
@@ -83,7 +85,7 @@ O Nexus segue **Semantic Versioning (`MAJOR.MINOR.PATCH`)**:
 1. Garanta que `main` está limpa e sincronizada (`git pull --rebase origin main`).
 2. Atualize `"version"` em [package.json](../package.json) (e rode `npm.cmd install --package-lock-only` para sincronizar o `package-lock.json`, se desejar).
 3. Adicione a nova seção de versão em [CHANGELOG.md](../CHANGELOG.md) com a data e os itens (`Adicionado`, `Corrigido`, `Alterado`).
-4. Rode `npm.cmd run typecheck` e `npm.cmd run build`.
+4. Rode `npm.cmd run verify` (`typecheck` + testes com 100% de cobertura + `build`).
 5. Faça o commit de release:
    ```bash
    git add package.json package-lock.json CHANGELOG.md

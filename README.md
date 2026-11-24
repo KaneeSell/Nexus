@@ -41,6 +41,7 @@ O próprio aplicativo verifica novas versões no GitHub Releases e exibe um avis
 - [Arquitetura e Banco de Dados](docs/ARCHITECTURE.md)
 - [Referência Completa do CLI e TUI](docs/CLI.md)
 - [Guia de Desenvolvimento e Continuidade](docs/DEVELOPMENT.md) — setup em novo PC e armadilhas já resolvidas
+- [Fluxo de Qualidade, Testes (100%) e Entrega](docs/QUALITY_WORKFLOW.md) — Vitest, cobertura 100%, `verify` e rotina para agentes
 - [Fluxo e Boas Práticas de Git](docs/GIT_WORKFLOW.md) — commits, branches, SemVer e releases
 - [Guia de Contribuição](CONTRIBUTING.md)
 - [Roadmap do Produto](docs/ROADMAP.md) e [Roadmap CLI/TUI](docs/CLI_TUI_ROADMAP.md)
@@ -73,7 +74,10 @@ npm.cmd run tui
 
 | Script | O que faz |
 | :--- | :--- |
-| `npm.cmd run typecheck` | Valida TypeScript em `main`, `preload`, `renderer`, `cli` e `shared` |
+| `npm.cmd run typecheck` | Valida TypeScript em `main`, `preload`, `renderer`, `cli`, `shared` e `tests` |
+| `npm.cmd run test` | Roda os testes automatizados com Vitest |
+| `npm.cmd run test:coverage` | Roda os testes exigindo 100% de cobertura por arquivo (`vitest.config.ts`) |
+| `npm.cmd run verify` | Executa `typecheck` + `test:coverage` + `build` antes de commitar |
 | `npm.cmd run build` | Compila `out/main`, `out/preload`, `out/renderer`, `out/cli/index.js` e `out/cli/tui.mjs` |
 | `npm.cmd run dist:win` | Gera instaladores Windows `.exe` (NSIS) e `.msi` (WiX) em `dist/` |
 | `npm run dist:linux` | Gera pacotes Linux (`AppImage`, `.deb`, `.rpm`, `.tar.gz`) em `dist/` |
