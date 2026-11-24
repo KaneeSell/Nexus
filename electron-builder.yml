@@ -58,6 +58,7 @@ msi:
 linux:
   icon: build/icon.png
   executableName: nexus
+  maintainer: Daniel <kanee.sell@gmail.com>
   category: Development
   target:
     - target: AppImage
