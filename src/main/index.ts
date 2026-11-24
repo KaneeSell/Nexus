@@ -43,7 +43,12 @@ function parseLaunchFromArgv(argv: string[]): {
 const initialParsed = parseLaunchFromArgv(process.argv);
 
 function getPrimaryWindow(): BrowserWindow | null {
-  return BrowserWindow.getFocusedWindow() ?? windows.values().next().value ?? null;
+  const focused = BrowserWindow.getFocusedWindow();
+  if (focused && !focused.isDestroyed()) return focused;
+  for (const win of windows) {
+    if (!win.isDestroyed()) return win;
+  }
+  return null;
 }
 
 function createMainWindow(launchOptions: CliLaunchOptions | null = null): BrowserWindow {
@@ -62,9 +67,10 @@ function createMainWindow(launchOptions: CliLaunchOptions | null = null): Browse
     }
   });
 
+  const webContentsId = win.webContents.id;
   windows.add(win);
   if (launchOptions) {
-    launchOptionsByWebContentsId.set(win.webContents.id, launchOptions);
+    launchOptionsByWebContentsId.set(webContentsId, launchOptions);
   }
 
   win.on('ready-to-show', () => {
@@ -72,7 +78,7 @@ function createMainWindow(launchOptions: CliLaunchOptions | null = null): Browse
   });
 
   win.on('closed', () => {
-    launchOptionsByWebContentsId.delete(win.webContents.id);
+    launchOptionsByWebContentsId.delete(webContentsId);
     windows.delete(win);
   });
 
