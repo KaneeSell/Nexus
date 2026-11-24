@@ -1,0 +1,68 @@
+{
+  "name": "nexus",
+  "version": "0.1.0",
+  "description": "Orquestrador de projetos local com Electron, React, MUI, Zustand e Prisma",
+  "author": "Daniel",
+  "homepage": "https://github.com/KaneeSell/Nexus#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KaneeSell/Nexus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KaneeSell/Nexus/issues"
+  },
+  "main": "./out/main/index.js",
+  "bin": {
+    "nexus": "./bin/nexus.mjs"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build && node scripts/build-cli.mjs",
+    "build:cli": "node scripts/build-cli.mjs --only=cli",
+    "build:tui": "node scripts/build-cli.mjs --only=tui",
+    "tui": "npm run build:tui && node out/cli/tui.mjs",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder --win --linux"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@electron-toolkit/preload": "^3.0.1",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^7.0.2",
+    "@mui/material": "^7.0.2",
+    "@prisma/client": "^6.6.0",
+    "ink": "^6.8.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^35.1.5",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^3.1.0",
+    "prisma": "^6.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true,
+    "esbuild@0.25.12": true,
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
+  }
+}

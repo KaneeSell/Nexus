@@ -1,0 +1,89 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model WorkspaceHistory {
+  id           String   @id @default(cuid())
+  path         String   @unique
+  name         String
+  lastOpenedAt DateTime @default(now())
+  isPinned     Boolean  @default(false)
+}
+
+model ProjectRecord {
+  id             String         @id @default(cuid())
+  path           String         @unique
+  name           String
+  adapterType    String         @default("node")
+  packageManager String         @default("npm")
+  lastScannedAt  DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  pipelines      Pipeline[]
+  runs           ExecutionRun[]
+  commands       ProjectCommand[]
+}
+
+model ProjectCommand {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     ProjectRecord @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  command     String
+  source      String        @default("package.json")
+  adapterType String        @default("node")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([projectId, name])
+}
+
+model Pipeline {
+  id          String         @id @default(cuid())
+  projectId   String
+  project     ProjectRecord  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String         @default("")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  steps       PipelineStep[]
+  runs        ExecutionRun[]
+}
+
+model PipelineStep {
+  id               String   @id @default(cuid())
+  pipelineId       String
+  pipeline         Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  order            Int
+  name             String
+  kind             String   @default("script")
+  command          String
+  onErrorAction    String   @default("stop")
+  onErrorCommand   String?
+  onSuccessCommand String?
+  enabled          Boolean  @default(true)
+}
+
+model ExecutionRun {
+  id         String        @id @default(cuid())
+  projectId  String
+  project    ProjectRecord @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pipelineId String?
+  pipeline   Pipeline?     @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  title      String
+  status     String
+  startedAt  DateTime      @default(now())
+  finishedAt DateTime?
+  logs       String        @default("")
+}
+
+model AppSetting {
+  key   String @id
+  value String
+}

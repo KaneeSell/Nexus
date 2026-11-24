@@ -1,0 +1,74 @@
+appId: com.nexus.orchestrator
+productName: Nexus
+publish:
+  provider: github
+  owner: KaneeSell
+  repo: Nexus
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - node_modules/**/*
+  - node_modules/.prisma/**/*
+  - '!node_modules/.cache/**'
+asarUnpack:
+  - node_modules/.prisma/**/*
+  - node_modules/@prisma/client/**/*
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - '**/*'
+  - from: out/cli
+    to: cli
+    filter:
+      - '**/*'
+  - from: node_modules/.prisma/client
+    to: app.asar.unpacked/node_modules/.prisma/client
+    filter:
+      - '**/*'
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: msi
+      arch:
+        - x64
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Nexus
+  include: build/installer.nsh
+msi:
+  oneClick: false
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Nexus
+  warningsAsErrors: false
+  additionalLightArgs:
+    - -sval
+linux:
+  icon: build/icon.png
+  executableName: nexus
+  category: Development
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+    - target: rpm
+      arch:
+        - x64
+    - target: tar.gz
+      arch:
+        - x64

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export NEXUS_APP_EXE="$SCRIPT_DIR/../../nexus"
+export NEXUS_RESOURCES_DIR="$SCRIPT_DIR/.."
+
+if command -v node >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/../cli/index.js" ]; then
+  exec node "$SCRIPT_DIR/../cli/index.js" "$@"
+fi
+
+RAW_TARGET="${1:-.}"
+if [ -d "$RAW_TARGET" ]; then
+  TARGET="$(cd "$RAW_TARGET" && pwd)"
+else
+  TARGET="$RAW_TARGET"
+fi
+
+nohup "$NEXUS_APP_EXE" --target="$TARGET" >/dev/null 2>&1 &
