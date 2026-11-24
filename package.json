@@ -23,6 +23,10 @@
     "tui": "npm run build:tui && node out/cli/tui.mjs",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "verify": "npm run typecheck && npm run test:coverage && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "dist:dir": "npm run build && electron-builder --win --dir --publish never",
@@ -49,6 +53,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^5.1.1",
     "electron": "^35.1.5",
     "electron-builder": "^26.18.0",
     "electron-vite": "^3.1.0",
@@ -56,7 +61,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "vitest": "^5.1.1"
   },
   "allowScripts": {
     "electron@35.7.5": true,

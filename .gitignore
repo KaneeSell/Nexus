@@ -1,6 +1,7 @@
 node_modules
 out
 dist
+coverage
 prisma/*.db
 prisma/*.db-journal
 .env

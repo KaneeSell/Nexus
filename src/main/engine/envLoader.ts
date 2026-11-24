@@ -28,9 +28,7 @@ function parseDotEnvContent(content: string): Record<string, string> {
       value = value.slice(1, -1);
     }
 
-    if (key) {
-      vars[key] = value;
-    }
+    vars[key] = value;
   }
 
   return vars;

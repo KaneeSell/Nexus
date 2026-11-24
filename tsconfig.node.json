@@ -16,9 +16,11 @@
   },
   "include": [
     "electron.vite.config.ts",
+    "vitest.config.ts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/cli/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "tests/**/*"
   ]
 }
