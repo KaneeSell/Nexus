@@ -42,6 +42,7 @@ O próprio aplicativo verifica novas versões no GitHub Releases e exibe um avis
 - [Referência Completa do CLI e TUI](docs/CLI.md)
 - [Guia de Desenvolvimento e Continuidade](docs/DEVELOPMENT.md) — setup em novo PC e armadilhas já resolvidas
 - [Fluxo de Qualidade, Testes (100%) e Entrega](docs/QUALITY_WORKFLOW.md) — Vitest, cobertura 100%, `verify` e rotina para agentes
+- [Versionamento Automático (SemVer)](docs/VERSIONING.md) — fonte única de versão e bump automático via Conventional Commits
 - [Fluxo e Boas Práticas de Git](docs/GIT_WORKFLOW.md) — commits, branches, SemVer e releases
 - [Guia de Contribuição](CONTRIBUTING.md)
 - [Roadmap do Produto](docs/ROADMAP.md) e [Roadmap CLI/TUI](docs/CLI_TUI_ROADMAP.md)
@@ -78,6 +79,7 @@ npm.cmd run tui
 | `npm.cmd run test` | Roda os testes automatizados com Vitest |
 | `npm.cmd run test:coverage` | Roda os testes exigindo 100% de cobertura por arquivo (`vitest.config.ts`) |
 | `npm.cmd run verify` | Executa `typecheck` + `test:coverage` + `build` antes de commitar |
+| `npm.cmd run version:bump` | Aplica bump SemVer automático em `package.json`, lockfile e `CHANGELOG.md` |
 | `npm.cmd run build` | Compila `out/main`, `out/preload`, `out/renderer`, `out/cli/index.js` e `out/cli/tui.mjs` |
 | `npm.cmd run dist:win` | Gera instaladores Windows `.exe` (NSIS) e `.msi` (WiX) em `dist/` |
 | `npm run dist:linux` | Gera pacotes Linux (`AppImage`, `.deb`, `.rpm`, `.tar.gz`) em `dist/` |

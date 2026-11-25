@@ -10,10 +10,11 @@ Este documento define a rotina oficial de engenharia do **Nexus**, aplicada tant
 flowchart LR
     A["1. Ler código & docs/DEVELOPMENT.md"] --> B["2. Implementar correção ou feature"]
     B --> C["3. Criar/atualizar testes (100% cobertura)"]
-    C --> D["4. Rodar npm.cmd run verify"]
-    D -->|Falhou| B
-    D -->|Passou| E["5. Atualizar docs & CHANGELOG.md"]
-    E --> F["6. Commit atômico (Conventional Commits)"]
+    C --> D["4. Atualizar docs & CHANGELOG.md"]
+    D --> E["5. Bump SemVer (version:bump)"]
+    E --> F["6. Rodar npm.cmd run verify"]
+    F -->|Falhou| B
+    F -->|Passou| G["7. Commits atômicos (Conventional Commits)"]
 ```
 
 ---

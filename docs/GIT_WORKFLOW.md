@@ -75,29 +75,30 @@ Use o formato:
 
 ## 4. Controle de Versão e Publicação de Releases (SemVer)
 
-O Nexus segue **Semantic Versioning (`MAJOR.MINOR.PATCH`)**:
-- `PATCH` (`0.1.1`): correções de bugs sem quebra (ex: fix no fechamento de janela).
-- `MINOR` (`0.2.0`): novas funcionalidades compatíveis (ex: novo adaptador ou etapas paralelas).
-- `MAJOR` (`1.0.0`): marco estável ou mudança incompatível.
+O Nexus segue **Semantic Versioning (`MAJOR.MINOR.PATCH`)** automatizado — consulte o guia completo em [docs/VERSIONING.md](VERSIONING.md):
+- `PATCH` (`0.1.1`): correções de bugs e performance (`fix`, `perf`).
+- `MINOR` (`0.2.0`): novas funcionalidades compatíveis (`feat`).
+- `MAJOR` (`1.0.0`): mudanças incompatíveis (`!:` ou `BREAKING CHANGE:`).
 
-### Passo a passo para lançar uma nova versão
+### Passo a passo para atualizar versão / lançar release
 
 1. Garanta que `main` está limpa e sincronizada (`git pull --rebase origin main`).
-2. Atualize `"version"` em [package.json](../package.json) (e rode `npm.cmd install --package-lock-only` para sincronizar o `package-lock.json`, se desejar).
-3. Adicione a nova seção de versão em [CHANGELOG.md](../CHANGELOG.md) com a data e os itens (`Adicionado`, `Corrigido`, `Alterado`).
-4. Rode `npm.cmd run verify` (`typecheck` + testes com 100% de cobertura + `build`).
-5. Faça o commit de release:
+2. Execute o bump automático (ou explícito) que atualiza [package.json](../package.json), `package-lock.json` e promove `## [Unreleased]` em [CHANGELOG.md](../CHANGELOG.md):
+   ```powershell
+   npm.cmd run version:bump   # ou version:patch | version:minor | version:major
+   ```
+3. Rode `npm.cmd run verify` (`typecheck` + testes com 100% de cobertura + `build` com a nova versão embutida).
+4. Faça o commit do bump:
    ```bash
    git add package.json package-lock.json CHANGELOG.md
-   git commit -m "chore(release): prepare v0.2.0"
-   git push origin main
+   git commit -m "chore(release): bump version to v0.2.0"
    ```
-6. Crie e envie a tag anotada `vX.Y.Z`:
+5. Quando desejar publicar uma Release pública no GitHub (somente quando solicitado), dê `git push origin main` e envie a tag anotada `vX.Y.Z`:
    ```bash
    git tag -a v0.2.0 -m "Release v0.2.0"
    git push origin v0.2.0
    ```
-7. O workflow [`.github/workflows/build.yml`](../.github/workflows/build.yml) compilará automaticamente **Windows (`.exe`, `.msi`)** e **Linux (`.AppImage`, `.deb`, `.rpm`, `.tar.gz`)** e criará a GitHub Release pública — que será detectada automaticamente pelo verificador de atualizações dentro do app.
+6. O workflow [`.github/workflows/build.yml`](../.github/workflows/build.yml) compilará automaticamente **Windows (`.exe`, `.msi`)** e **Linux (`.AppImage`, `.deb`, `.rpm`, `.tar.gz`)** e criará a GitHub Release pública — que será detectada automaticamente pelo verificador de atualizações dentro do app.
 
 > **Importante:** nunca reutilize/mova uma tag já publicada em produção depois que usuários baixarem a release; lance uma versão `PATCH` seguinte (`v0.1.1`).
 

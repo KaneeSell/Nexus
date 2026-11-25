@@ -51,6 +51,10 @@ npm.cmd run build
 | `npm.cmd run test:watch` | Executa os testes em modo observação durante o desenvolvimento |
 | `npm.cmd run test:coverage` | Executa todos os testes exigindo 100% de cobertura por arquivo (`vitest.config.ts`) |
 | `npm.cmd run verify` | Portão completo pré-commit: `typecheck` + `test:coverage` + `build` |
+| `npm.cmd run version:bump` | Calcula e aplica bump SemVer (`package.json`, lockfile e `CHANGELOG.md`) pelos commits |
+| `npm.cmd run version:patch` | Incrementa versão `PATCH` (`0.1.0` → `0.1.1`) |
+| `npm.cmd run version:minor` | Incrementa versão `MINOR` (`0.1.0` → `0.2.0`) |
+| `npm.cmd run version:major` | Incrementa versão `MAJOR` (`0.1.0` → `1.0.0`) |
 | `npm.cmd run build` | Compila Electron + `out/cli/index.js` + `out/cli/tui.mjs` autossuficiente |
 | `npm.cmd run dist:win` | Gera instaladores `.exe` (NSIS) e `.msi` (WiX) em `dist/` |
 

@@ -28,9 +28,24 @@ Follow these steps in order for every change in the Nexus codebase.
 - Register every newly added or modified testable module in `coverage.include` inside [vitest.config.ts](../../../vitest.config.ts).
 - Verify 100% `lines`, `statements`, `functions`, and `branches` per file. Never relax thresholds.
 
-## 4. Run the Full Verification Gate
+## 4. Update Documentation & Changelog
 
-On Windows PowerShell (use `.cmd` wrappers):
+- Update [docs/CLI.md](../../../docs/CLI.md), [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md), or [docs/DEVELOPMENT.md](../../../docs/DEVELOPMENT.md) if CLI behavior, schema, IPC, or architecture changed.
+- Record user-facing fixes or features under `## [Unreleased]` in [CHANGELOG.md](../../../CHANGELOG.md).
+
+## 5. Apply SemVer Version Bump
+
+When the change introduces a `fix`/`perf` (`patch`), `feat` (`minor`), or breaking change (`major`) — see [docs/VERSIONING.md](../../../docs/VERSIONING.md):
+
+```powershell
+npm.cmd run version:patch   # or version:minor / version:major / version:bump
+```
+
+This keeps `package.json`, `package-lock.json`, and `CHANGELOG.md` synchronized. Skip for isolated `docs`/`test`/`chore`/`ci` changes.
+
+## 6. Run the Full Verification Gate
+
+On Windows PowerShell (use `.cmd` wrappers), run **after** the version bump so CLI/TUI/Electron bundles embed the updated version:
 
 ```powershell
 npm.cmd run verify
@@ -43,13 +58,8 @@ This runs:
 
 If any step fails, fix all errors and re-run `npm.cmd run verify` until it exits `0`.
 
-## 5. Update Documentation & Changelog
-
-- Update [docs/CLI.md](../../../docs/CLI.md), [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md), or [docs/DEVELOPMENT.md](../../../docs/DEVELOPMENT.md) if CLI behavior, schema, IPC, or architecture changed.
-- Record user-facing fixes or features under `## [Unreleased]` in [CHANGELOG.md](../../../CHANGELOG.md).
-
-## 6. Inspect & Commit Atomically
+## 7. Inspect & Commit Atomically
 
 - Check `git status` and `git diff`. Ensure `.env`, `prisma/*.db`, `out/`, `dist/`, and `coverage/` are not staged.
-- Commit in atomic Conventional Commits following [docs/GIT_WORKFLOW.md](../../../docs/GIT_WORKFLOW.md).
+- Commit code/tests/docs in atomic Conventional Commits following [docs/GIT_WORKFLOW.md](../../../docs/GIT_WORKFLOW.md), plus `chore(release): bump version to vX.Y.Z` when bumped.
 - Do not push or create release tags unless explicitly asked by the user.
