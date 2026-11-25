@@ -12,6 +12,9 @@ describe('parseCliArgs', () => {
       subcommand: null,
       targetPath: null,
       runTarget: null,
+      exportTarget: null,
+      exportFormat: null,
+      outputPath: null,
       newWindow: false,
       gui: false,
       sync: false,
@@ -184,6 +187,38 @@ describe('parseCliArgs', () => {
     });
     expect(parseCliArgs(['doctor']).subcommand).toBe('doctor');
     expect(parseCliArgs(['tui']).subcommand).toBe('tui');
+
+    expect(
+      parseCliArgs(['export', 'CI/CD', './dist/ci.ps1', '-f', '.PS1'])
+    ).toMatchObject({
+      subcommand: 'export',
+      exportTarget: 'CI/CD',
+      exportFormat: 'ps1',
+      outputPath: './dist/ci.ps1'
+    });
+    expect(
+      parseCliArgs(['export', 'Deploy', '--format=sh', '-o', './deploy.sh'])
+    ).toMatchObject({
+      subcommand: 'export',
+      exportTarget: 'Deploy',
+      exportFormat: 'sh',
+      outputPath: './deploy.sh'
+    });
+    expect(
+      parseCliArgs(['export', '--format=bat', '--out', './ci.bat'])
+    ).toMatchObject({
+      subcommand: 'export',
+      exportTarget: null,
+      exportFormat: 'bat',
+      outputPath: './ci.bat'
+    });
+    expect(
+      parseCliArgs(['export', '-f', 'invalid', '--format', '--out'])
+    ).toMatchObject({
+      subcommand: 'export',
+      exportFormat: null,
+      outputPath: null
+    });
   });
 });
 
@@ -206,6 +241,7 @@ describe('isTerminalOnlyArgs & shouldLaunchTui', () => {
     expect(isTerminalOnlyArgs(parseCliArgs(['ls']))).toBe(true);
     expect(isTerminalOnlyArgs(parseCliArgs(['pin']))).toBe(true);
     expect(isTerminalOnlyArgs(parseCliArgs(['doctor']))).toBe(true);
+    expect(isTerminalOnlyArgs(parseCliArgs(['export', 'CI/CD']))).toBe(true);
 
     expect(isTerminalOnlyArgs(parseCliArgs(['--dry-run']))).toBe(true);
     expect(isTerminalOnlyArgs(parseCliArgs(['--dry-run', '--gui']))).toBe(false);
@@ -236,6 +272,7 @@ describe('isTerminalOnlyArgs & shouldLaunchTui', () => {
     const help = formatCliHelp();
     expect(help).toContain('Nexus CLI');
     expect(help).toContain('nexus projects');
+    expect(help).toContain('export <pipeline>');
     expect(help).toContain('--sync');
   });
 });

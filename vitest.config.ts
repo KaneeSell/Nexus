@@ -14,6 +14,7 @@ export default defineConfig({
         'src/cli/tui/NexusTuiApp.tsx',
         'src/shared/cliArgs.ts',
         'src/main/engine/envLoader.ts',
+        'src/main/engine/pipelineExporter.ts',
         'src/main/adapters/nodeAdapter.ts'
       ],
       thresholds: {
