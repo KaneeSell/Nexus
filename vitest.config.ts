@@ -14,8 +14,12 @@ export default defineConfig({
       include: [
         'src/cli/tui/NexusTuiApp.tsx',
         'src/shared/cliArgs.ts',
+        'src/shared/projectCatalog.ts',
         'src/shared/semverBump.ts',
         'src/shared/version.ts',
+        'src/main/creator/projectScaffolder.ts',
+        'src/main/creator/registryApi.ts',
+        'src/main/creator/scaffoldPlan.ts',
         'src/main/engine/envLoader.ts',
         'src/main/engine/pipelineExporter.ts',
         'src/main/adapters/nodeAdapter.ts'
