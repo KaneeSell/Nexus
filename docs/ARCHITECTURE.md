@@ -78,6 +78,7 @@ nexus/
 │   │           ├── ProjectSidebar.tsx
 │   │           ├── ScriptsTab.tsx
 │   │           ├── PipelinesTab.tsx
+│   │           ├── ExportPipelineDialog.tsx # Modal de exportação personalizada (.bat, .ps1, .sh)
 │   │           ├── PipelineEditorDialog.tsx # Editor com @dnd-kit
 │   │           ├── HistoryTab.tsx
 │   │           ├── RunnerConsole.tsx
@@ -133,7 +134,7 @@ O ponto de entrada do CLI ([src/cli/index.ts](file:///c:/Projetos/Pessoais/nexus
 ## 4. Canais IPC (`src/main/ipc/registerHandlers.ts` ↔ `src/preload/index.ts`)
 
 - **Workspace:** `workspace:getInitialLaunch`, `workspace:getInitialTarget`, `workspace:scan`, `workspace:pickFolder`, `workspace:getHistory`, `workspace:togglePin`, `workspace:removeHistory`
-- **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`, `pipeline:export`
+- **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`, `pipeline:previewExport`, `pipeline:export`
 - **Runner:** `runner:runScript`, `runner:runScriptsBatch`, `runner:runPipeline`, `runner:cancel`, `runner:getHistory`
 - **Sistema, Ferramentas, Config & Updates:** `system:openInVSCode`, `system:openInExplorer`, `system:openInTerminal`, `system:getDetectedTools`, `system:openWithTool`, `system:getCliStatus`, `system:installCli`, `system:uninstallCli`, `system:getAppInfo`, `system:checkForUpdates`, `system:dismissUpdateNotice`, `system:downloadAndInstallUpdate`, `system:openExternalUrl`, `settings:get`, `settings:set`
 - **Eventos Push (Main → Renderer):** `workspace:scan-progress`, `workspace:open-target`, `workspace:launch-options`, `runner:log`, `runner:status`, `runner:step-status`

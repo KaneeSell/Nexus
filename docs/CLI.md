@@ -88,6 +88,13 @@ Por padrão, estes comandos consultam diretamente o banco SQLite de qualquer pas
 | `--json` | — | Formata a saída como JSON |
 | `--format` | `-f` | Formato de exportação do pipeline (`bat`, `ps1` ou `sh`) |
 | `--out` | `-o` | Caminho de destino do arquivo exportado em `nexus export` |
+| `--raw` | — | Exporta script cru (apenas comandos diretos, sem banner/resumo) |
+| `--no-confirm` | `-y` / `--yes` | Script exportado não aguarda `ENTER` antes de executar |
+| `--no-pause` | — | Script exportado não pausa ao finalizar |
+| `--no-color` | — | Remove cores ANSI do script exportado |
+| `--portable` | — | Usa o diretório atual em vez do caminho fixo do projeto |
+| `--log` | — | Salva a saída da execução em arquivo `<pipeline>.log` |
+| `--header` | — | Adiciona nota/cabeçalho personalizado ao script exportado |
 | `--db-path` | — | Imprime o caminho completo do arquivo SQLite utilizado |
 | `--doctor` | — | Diagnóstico completo do ambiente (`node`, `npm`/`pnpm`/`yarn`/`bun`, CLI no `PATH` e SQLite) |
 | `--version` | `-v` | Mostra a versão do Nexus |
@@ -114,8 +121,9 @@ nexus history -p nexus
 # Rodar pipeline ou script resolvendo direto do SQLite
 nexus run "CI/CD" -p nexus --sync --dry-run
 
-# Exportar pipeline para .bat, .ps1 ou .sh
+# Exportar pipeline personalizado ou em modo cru
 nexus export "CI/CD" -p nexus --format bat --out ./ci.bat
+nexus export "CI/CD" -p nexus --format bat --raw --portable --log --out ./ci-raw.bat
 
 # Abrir a interface gráfica Electron na pasta atual
 nexus .
