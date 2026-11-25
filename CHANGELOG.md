@@ -4,6 +4,8 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-24
+
 ### Corrigido
 - **TUI (`nexus` / `tui.mjs`):** removida chamada inválida de `useMemo` dentro do callback de `useInput` em `src/cli/tui/NexusTuiApp.tsx`, que causava `Minified React error #321` ao pressionar comandos no terminal, e adicionada dependência `data.detectedTools` ao `useCallback` de `executeSlashCommand`.
 
