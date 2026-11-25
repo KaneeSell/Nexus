@@ -14,6 +14,19 @@ export type StartupMode = 'last' | 'fixed' | 'empty';
 
 export type PipelineExportFormat = 'bat' | 'ps1' | 'sh';
 
+export type PipelineExportStyle = 'rich' | 'raw';
+
+export interface PipelineExportOptions {
+  style?: PipelineExportStyle;
+  confirmBeforeRun?: boolean;
+  pauseOnFinish?: boolean;
+  includeColors?: boolean;
+  useProjectDir?: boolean;
+  saveLogFile?: boolean;
+  envProfile?: string | null;
+  customHeader?: string | null;
+}
+
 export interface ExportPipelineResult {
   canceled: boolean;
   filePath?: string;
@@ -228,7 +241,16 @@ export interface NexusAPI {
   listPipelines: (projectId: string) => Promise<PipelineDTO[]>;
   savePipeline: (input: SavePipelineInput) => Promise<PipelineDTO>;
   deletePipeline: (pipelineId: string) => Promise<void>;
-  exportPipeline: (pipelineId: string, format: PipelineExportFormat) => Promise<ExportPipelineResult>;
+  previewExportPipeline: (
+    pipelineId: string,
+    format: PipelineExportFormat,
+    options?: PipelineExportOptions
+  ) => Promise<string>;
+  exportPipeline: (
+    pipelineId: string,
+    format: PipelineExportFormat,
+    options?: PipelineExportOptions
+  ) => Promise<ExportPipelineResult>;
 
   runScript: (
     input: {

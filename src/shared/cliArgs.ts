@@ -22,6 +22,13 @@ export interface ParsedCliArgs {
   exportTarget: string | null;
   exportFormat: PipelineExportFormat | null;
   outputPath: string | null;
+  exportRaw: boolean;
+  exportNoConfirm: boolean;
+  exportNoPause: boolean;
+  exportNoColor: boolean;
+  exportPortable: boolean;
+  exportSaveLog: boolean;
+  exportHeader: string | null;
   newWindow: boolean;
   gui: boolean;
   sync: boolean;
@@ -102,6 +109,13 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     exportTarget: null,
     exportFormat: null,
     outputPath: null,
+    exportRaw: false,
+    exportNoConfirm: false,
+    exportNoPause: false,
+    exportNoColor: false,
+    exportPortable: false,
+    exportSaveLog: false,
+    exportHeader: null,
     newWindow: false,
     gui: false,
     sync: false,
@@ -254,6 +268,29 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       case '--out':
         result.outputPath = readNextValue() ?? null;
         break;
+      case '--raw':
+        result.exportRaw = true;
+        break;
+      case '-y':
+      case '--yes':
+      case '--no-confirm':
+        result.exportNoConfirm = true;
+        break;
+      case '--no-pause':
+        result.exportNoPause = true;
+        break;
+      case '--no-color':
+        result.exportNoColor = true;
+        break;
+      case '--portable':
+        result.exportPortable = true;
+        break;
+      case '--log':
+        result.exportSaveLog = true;
+        break;
+      case '--header':
+        result.exportHeader = readNextValue() ?? null;
+        break;
       default:
         break;
     }
@@ -393,6 +430,13 @@ Consultas em Pasta / Saída:
 Exportação de Pipeline:
   -f, --format <bat|ps1|sh>    Formato do script exportado
   -o, --out <arquivo>          Caminho de destino do script exportado
+      --raw                    Gera script cru (apenas comandos diretos, sem banner/menu)
+      --no-confirm, -y, --yes  Não aguarda ENTER antes de executar
+      --no-pause               Não pausa a janela ao finalizar
+      --no-color               Remove cores ANSI do script gerado
+      --portable               Usa a pasta atual em vez do caminho absoluto do projeto
+      --log                    Salva a saída da execução em arquivo .log
+      --header <texto>         Adiciona nota/cabeçalho personalizado ao script
 
 Sistema:
       --db-path                Imprime o caminho do banco SQLite

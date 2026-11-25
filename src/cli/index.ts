@@ -16,6 +16,7 @@ import type {
   OnErrorAction,
   PackageManager,
   PipelineExportFormat,
+  PipelineExportOptions,
   ScannedProject,
   StepKind
 } from '../shared/types';
@@ -455,6 +456,17 @@ async function handleExportPipeline(args: ParsedCliArgs): Promise<number> {
   const format: PipelineExportFormat =
     args.exportFormat ?? (process.platform === 'win32' ? 'bat' : 'sh');
 
+  const exportOptions: PipelineExportOptions = {
+    style: args.exportRaw ? 'raw' : 'rich',
+    confirmBeforeRun: args.exportNoConfirm ? false : undefined,
+    pauseOnFinish: args.exportNoPause ? false : undefined,
+    includeColors: args.exportNoColor ? false : undefined,
+    useProjectDir: !args.exportPortable,
+    saveLogFile: args.exportSaveLog,
+    envProfile: args.envProfile,
+    customHeader: args.exportHeader
+  };
+
   const content = generatePipelineScript(
     {
       pipelineName: matchedPipeline.name,
@@ -474,7 +486,8 @@ async function handleExportPipeline(args: ParsedCliArgs): Promise<number> {
         enabled: s.enabled
       }))
     },
-    format
+    format,
+    exportOptions
   );
 
   const outFile = args.outputPath

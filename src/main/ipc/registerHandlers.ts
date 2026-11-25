@@ -8,6 +8,7 @@ import type {
   PackageManager,
   PipelineDTO,
   PipelineExportFormat,
+  PipelineExportOptions,
   RunExecutionOptions,
   RunScriptsBatchInput,
   RunStatus,
@@ -18,7 +19,11 @@ import type {
   WorkspaceScanOptions
 } from '../../shared/types';
 import { getPrisma, resolveDatabasePath } from '../db/prisma';
-import { generatePipelineScript, suggestExportFilename } from '../engine/pipelineExporter';
+import {
+  generatePipelineScript,
+  suggestExportFilename,
+  type PipelineExportInput
+} from '../engine/pipelineExporter';
 import { ProcessRunner, type ExecutableStep } from '../engine/processRunner';
 import { scanWorkspace } from '../scanner/workspaceScanner';
 import { getCliStatus, installCliToPath, uninstallCliFromPath } from '../system/cliManager';
@@ -254,47 +259,67 @@ export function registerIpcHandlers(
     await prisma.pipeline.delete({ where: { id: pipelineId } });
   });
 
+  async function loadPipelineExportInput(pipelineId: string): Promise<PipelineExportInput> {
+    const prisma = getPrisma();
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: pipelineId },
+      include: {
+        project: true,
+        steps: { orderBy: { order: 'asc' } }
+      }
+    });
+
+    if (!pipeline) {
+      throw new Error('Pipeline não encontrado.');
+    }
+
+    return {
+      pipelineName: pipeline.name,
+      description: pipeline.description,
+      projectName: pipeline.project.name,
+      projectPath: pipeline.project.path,
+      packageManager: (pipeline.project.packageManager || 'npm') as PackageManager,
+      steps: pipeline.steps.map((s) => ({
+        name: s.name,
+        kind: (s.kind === 'command' ? 'command' : 'script') as StepKind,
+        command: s.command,
+        onErrorAction: (['stop', 'continue', 'run_command'].includes(s.onErrorAction)
+          ? s.onErrorAction
+          : 'stop') as OnErrorAction,
+        onErrorCommand: s.onErrorCommand,
+        onSuccessCommand: s.onSuccessCommand,
+        enabled: s.enabled
+      }))
+    };
+  }
+
+  ipcMain.handle(
+    'pipeline:previewExport',
+    async (
+      _event,
+      pipelineId: string,
+      format: PipelineExportFormat,
+      options?: PipelineExportOptions
+    ) => {
+      const exportInput = await loadPipelineExportInput(pipelineId);
+      return generatePipelineScript(exportInput, format, options);
+    }
+  );
+
   ipcMain.handle(
     'pipeline:export',
-    async (event, pipelineId: string, format: PipelineExportFormat) => {
-      const prisma = getPrisma();
-      const pipeline = await prisma.pipeline.findUnique({
-        where: { id: pipelineId },
-        include: {
-          project: true,
-          steps: { orderBy: { order: 'asc' } }
-        }
-      });
-
-      if (!pipeline) {
-        throw new Error('Pipeline não encontrado.');
-      }
-
-      const content = generatePipelineScript(
-        {
-          pipelineName: pipeline.name,
-          description: pipeline.description,
-          projectName: pipeline.project.name,
-          projectPath: pipeline.project.path,
-          packageManager: (pipeline.project.packageManager || 'npm') as PackageManager,
-          steps: pipeline.steps.map((s) => ({
-            name: s.name,
-            kind: (s.kind === 'command' ? 'command' : 'script') as StepKind,
-            command: s.command,
-            onErrorAction: (['stop', 'continue', 'run_command'].includes(s.onErrorAction)
-              ? s.onErrorAction
-              : 'stop') as OnErrorAction,
-            onErrorCommand: s.onErrorCommand,
-            onSuccessCommand: s.onSuccessCommand,
-            enabled: s.enabled
-          }))
-        },
-        format
-      );
+    async (
+      event,
+      pipelineId: string,
+      format: PipelineExportFormat,
+      options?: PipelineExportOptions
+    ) => {
+      const exportInput = await loadPipelineExportInput(pipelineId);
+      const content = generatePipelineScript(exportInput, format, options);
 
       const defaultPath = path.join(
-        pipeline.project.path,
-        suggestExportFilename(pipeline.name, format)
+        exportInput.projectPath,
+        suggestExportFilename(exportInput.pipelineName, format)
       );
       const filterLabel =
         format === 'bat'
@@ -305,7 +330,7 @@ export function registerIpcHandlers(
 
       const win = BrowserWindow.fromWebContents(event.sender) ?? getPrimaryWindow();
       const saveOptions: Electron.SaveDialogOptions = {
-        title: `Exportar Pipeline "${pipeline.name}"`,
+        title: `Exportar Pipeline "${exportInput.pipelineName}"`,
         defaultPath,
         filters: [{ name: filterLabel, extensions: [format] }]
       };

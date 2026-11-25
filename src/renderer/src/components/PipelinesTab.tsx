@@ -1,5 +1,4 @@
 import AddIcon from '@mui/icons-material/Add';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
@@ -14,15 +13,13 @@ import {
   CardContent,
   Chip,
   IconButton,
-  ListItemText,
-  Menu,
-  MenuItem,
   Stack,
   Typography
 } from '@mui/material';
 import { useState } from 'react';
-import type { PipelineDTO, PipelineExportFormat } from '../../../shared/types';
+import type { ExportPipelineResult, PipelineDTO } from '../../../shared/types';
 import { useNexusStore } from '../store/useNexusStore';
+import { ExportPipelineDialog } from './ExportPipelineDialog';
 
 interface PipelinesTabProps {
   projectId: string;
@@ -44,15 +41,10 @@ function errorLabel(action: string): string {
 export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabProps) {
   const pipelines = useNexusStore((s) => s.pipelines);
   const activeRun = useNexusStore((s) => s.activeRun);
-  const appInfo = useNexusStore((s) => s.appInfo);
   const runPipeline = useNexusStore((s) => s.runPipeline);
   const deletePipeline = useNexusStore((s) => s.deletePipeline);
-  const exportPipeline = useNexusStore((s) => s.exportPipeline);
 
-  const [exportMenu, setExportMenu] = useState<{
-    anchorEl: HTMLElement;
-    pipeline: PipelineDTO;
-  } | null>(null);
+  const [exportTarget, setExportTarget] = useState<PipelineDTO | null>(null);
   const [exportFeedback, setExportFeedback] = useState<{
     severity: 'success' | 'error';
     message: string;
@@ -60,24 +52,13 @@ export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabPro
   } | null>(null);
 
   const isRunning = activeRun?.status === 'running';
-  const isWindows = (appInfo?.platform ?? 'win32') === 'win32';
 
-  const handleExport = async (pipeline: PipelineDTO, format: PipelineExportFormat): Promise<void> => {
-    setExportMenu(null);
-    setExportFeedback(null);
-    try {
-      const result = await exportPipeline(pipeline.id, format);
-      if (!result.canceled && result.filePath) {
-        setExportFeedback({
-          severity: 'success',
-          message: `Pipeline "${pipeline.name}" exportado para ${result.filePath}`,
-          filePath: result.filePath
-        });
-      }
-    } catch (err) {
+  const handleExported = (result: ExportPipelineResult, pipelineName: string): void => {
+    if (!result.canceled && result.filePath) {
       setExportFeedback({
-        severity: 'error',
-        message: err instanceof Error ? err.message : String(err)
+        severity: 'success',
+        message: `Pipeline "${pipelineName}" exportado para ${result.filePath}`,
+        filePath: result.filePath
       });
     }
   };
@@ -192,11 +173,10 @@ export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabPro
                       size="small"
                       variant="outlined"
                       startIcon={<DownloadIcon />}
-                      endIcon={<ArrowDropDownIcon />}
                       disabled={enabledCount === 0}
-                      onClick={(e) => setExportMenu({ anchorEl: e.currentTarget, pipeline })}
+                      onClick={() => setExportTarget(pipeline)}
                     >
-                      Exportar
+                      Exportar...
                     </Button>
                   </Stack>
 
@@ -215,36 +195,12 @@ export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabPro
         </Stack>
       )}
 
-      <Menu
-        anchorEl={exportMenu?.anchorEl ?? null}
-        open={Boolean(exportMenu)}
-        onClose={() => setExportMenu(null)}
-      >
-        <MenuItem
-          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'bat')}
-        >
-          <ListItemText
-            primary={`Windows Batch (.bat)${isWindows ? ' — recomendado' : ''}`}
-            secondary="Abre no CMD / Windows Terminal com resumo e pause"
-          />
-        </MenuItem>
-        <MenuItem
-          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'ps1')}
-        >
-          <ListItemText
-            primary="PowerShell (.ps1)"
-            secondary="Script PowerShell com cores ANSI e cronômetro"
-          />
-        </MenuItem>
-        <MenuItem
-          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'sh')}
-        >
-          <ListItemText
-            primary={`Shell Script (.sh)${!isWindows ? ' — recomendado' : ''}`}
-            secondary="Bash executável para Linux/macOS"
-          />
-        </MenuItem>
-      </Menu>
+      <ExportPipelineDialog
+        open={Boolean(exportTarget)}
+        pipeline={exportTarget}
+        onClose={() => setExportTarget(null)}
+        onExported={handleExported}
+      />
     </Box>
   );
 }

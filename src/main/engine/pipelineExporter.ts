@@ -2,6 +2,8 @@ import type {
   OnErrorAction,
   PackageManager,
   PipelineExportFormat,
+  PipelineExportOptions,
+  PipelineExportStyle,
   StepKind
 } from '../../shared/types';
 
@@ -24,6 +26,17 @@ export interface PipelineExportInput {
   steps: PipelineExportStep[];
 }
 
+export interface ResolvedPipelineExportOptions {
+  style: PipelineExportStyle;
+  confirmBeforeRun: boolean;
+  pauseOnFinish: boolean;
+  includeColors: boolean;
+  useProjectDir: boolean;
+  saveLogFile: boolean;
+  envProfile: string | null;
+  customHeader: string | null;
+}
+
 interface ResolvedExportStep {
   index: number;
   name: string;
@@ -34,6 +47,37 @@ interface ResolvedExportStep {
   onSuccessCommand: string | null;
 }
 
+function slugifyName(name: string): string {
+  const slug = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'pipeline';
+}
+
+/**
+ * Normalizes optional pipeline export settings with sensible defaults for rich or raw mode.
+ */
+export function normalizeExportOptions(
+  options: PipelineExportOptions = {}
+): ResolvedPipelineExportOptions {
+  const style: PipelineExportStyle = options.style === 'raw' ? 'raw' : 'rich';
+  const isRaw = style === 'raw';
+
+  return {
+    style,
+    confirmBeforeRun: options.confirmBeforeRun ?? !isRaw,
+    pauseOnFinish: options.pauseOnFinish ?? !isRaw,
+    includeColors: options.includeColors ?? !isRaw,
+    useProjectDir: options.useProjectDir ?? true,
+    saveLogFile: options.saveLogFile ?? false,
+    envProfile: options.envProfile?.trim() || null,
+    customHeader: options.customHeader?.trim() || null
+  };
+}
+
 /**
  * Generates a filesystem-safe filename for an exported pipeline script.
  */
@@ -41,14 +85,7 @@ export function suggestExportFilename(
   pipelineName: string,
   format: PipelineExportFormat
 ): string {
-  const slug = pipelineName
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  const base = slug || 'pipeline';
-  return `${base}.${format}`;
+  return `${slugifyName(pipelineName)}.${format}`;
 }
 
 /**
@@ -112,18 +149,186 @@ function formatStepNote(step: ResolvedExportStep): string {
   return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
 }
 
-function generateBatScript(
+function buildBatEnvLoaderLines(envProfile: string | null): string[] {
+  if (!envProfile) return [];
+  const safeProfile = escapeBatPercent(envProfile.replace(/"/g, ''));
+  return [
+    `set "NEXUS_ENV_FILE="`,
+    `if exist ".env.${safeProfile}" set "NEXUS_ENV_FILE=.env.${safeProfile}"`,
+    `if not defined NEXUS_ENV_FILE if exist ".env" set "NEXUS_ENV_FILE=.env"`,
+    `if defined NEXUS_ENV_FILE (`,
+    `  for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%NEXUS_ENV_FILE%") do (`,
+    `    if not "%%~A"=="" set "%%~A=%%~B"`,
+    `  )`,
+    `)`
+  ];
+}
+
+function buildPsEnvLoaderLines(envProfile: string | null): string[] {
+  if (!envProfile) return [];
+  const safeProfile = escapePsSingleQuote(envProfile);
+  return [
+    `$envFile = if (Test-Path '.env.${safeProfile}') { '.env.${safeProfile}' } elseif (Test-Path '.env') { '.env' } else { $null }`,
+    `if ($envFile) {`,
+    `  Get-Content -LiteralPath $envFile | ForEach-Object {`,
+    `    $line = $_.Trim()`,
+    `    if ($line -and -not $line.StartsWith('#')) {`,
+    `      $clean = if ($line.StartsWith('export ')) { $line.Substring(7).Trim() } else { $line }`,
+    `      $eq = $clean.IndexOf('=')`,
+    `      if ($eq -gt 0) {`,
+    `        $k = $clean.Substring(0, $eq).Trim()`,
+    `        $v = $clean.Substring($eq + 1).Trim().Trim('"').Trim("'")`,
+    `        [Environment]::SetEnvironmentVariable($k, $v, 'Process')`,
+    `      }`,
+    `    }`,
+    `  }`,
+    `}`
+  ];
+}
+
+function buildShEnvLoaderLines(envProfile: string | null): string[] {
+  if (!envProfile) return [];
+  const safeProfile = escapeShSingleQuote(envProfile);
+  return [
+    `ENV_FILE=""`,
+    `if [ -f '.env.${safeProfile}' ]; then ENV_FILE='.env.${safeProfile}'; elif [ -f '.env' ]; then ENV_FILE='.env'; fi`,
+    `if [ -n "$ENV_FILE" ]; then`,
+    `  set -a`,
+    `  . "./$ENV_FILE"`,
+    `  set +a`,
+    `fi`
+  ];
+}
+
+function formatBatRawCommand(step: Pick<ResolvedExportStep, 'kind' | 'resolvedCommand'>): string {
+  const cmd = escapeBatPercent(step.resolvedCommand);
+  return step.kind === 'script' ? `call ${cmd}` : cmd;
+}
+
+function generateBatRawScript(
   input: PipelineExportInput,
-  steps: ResolvedExportStep[]
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
+): string {
+  const pathNoQuotes = escapeBatPercent(input.projectPath.replace(/"/g, ''));
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
+
+  const lines: string[] = [
+    `@echo off`,
+    `chcp 65001 >nul`,
+    `setlocal EnableExtensions`,
+    `REM Pipeline: ${input.pipelineName} (${input.projectName})`
+  ];
+
+  if (opts.customHeader) {
+    lines.push(`REM ${opts.customHeader}`);
+  }
+  lines.push('');
+
+  if (opts.confirmBeforeRun) {
+    lines.push(
+      `set /p "NEXUS_GO=Pressione ENTER para executar ${escapeBatEcho(input.pipelineName)} (ou Ctrl+C para cancelar)... "`,
+      ``
+    );
+  }
+
+  if (opts.useProjectDir) {
+    lines.push(`pushd "${pathNoQuotes}" || exit /b 1`);
+  }
+
+  lines.push(...buildBatEnvLoaderLines(opts.envProfile));
+
+  if (opts.saveLogFile) {
+    lines.push(`set "LOG_FILE=${logFile}"`, `type nul > "%LOG_FILE%"`);
+  }
+  lines.push('');
+
+  for (const s of steps) {
+    const rawCmd = formatBatRawCommand(s);
+    if (opts.saveLogFile) {
+      lines.push(`cmd /c "${escapeBatPercent(s.resolvedCommand)}" >> "%LOG_FILE%" 2>&1`);
+    } else {
+      lines.push(rawCmd);
+    }
+
+    if (s.onErrorAction === 'stop') {
+      lines.push(`if errorlevel 1 (`);
+      if (opts.useProjectDir) lines.push(`  popd`);
+      if (opts.pauseOnFinish) lines.push(`  pause`);
+      lines.push(`  exit /b 1`, `)`);
+    } else if (s.onErrorAction === 'run_command') {
+      lines.push(`if errorlevel 1 (`);
+      if (s.onErrorCommand) {
+        lines.push(`  ${escapeBatPercent(s.onErrorCommand)}`);
+      }
+      if (opts.useProjectDir) lines.push(`  popd`);
+      if (opts.pauseOnFinish) lines.push(`  pause`);
+      lines.push(`  exit /b 1`, `)`);
+    }
+
+    if (s.onSuccessCommand) {
+      lines.push(
+        `if not errorlevel 1 ${escapeBatPercent(s.onSuccessCommand)}`
+      );
+    }
+    lines.push('');
+  }
+
+  if (opts.useProjectDir) {
+    lines.push(`popd`);
+  }
+  if (opts.pauseOnFinish) {
+    lines.push(`pause`);
+  }
+  lines.push(`exit /b 0`);
+
+  return `${lines.join('\r\n')}\r\n`;
+}
+
+function generateBatRichScript(
+  input: PipelineExportInput,
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
 ): string {
   const total = steps.length;
   const safePipeline = escapeBatEcho(input.pipelineName);
   const safeProject = escapeBatEcho(input.projectName);
-  const safePath = escapeBatEcho(input.projectPath);
+  const safePath = opts.useProjectDir
+    ? escapeBatEcho(input.projectPath)
+    : 'Pasta atual ^(%%CD%%^)';
   const safeDescription = input.description?.trim()
     ? escapeBatEcho(input.description.trim())
     : '';
+  const safeHeader = opts.customHeader ? escapeBatEcho(opts.customHeader) : '';
   const pathNoQuotes = escapeBatPercent(input.projectPath.replace(/"/g, ''));
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
+
+  const colorSetup = opts.includeColors
+    ? [
+        `for /f %%A in ('echo prompt $E ^| cmd') do set "ESC=%%A"`,
+        `set "C_BRAND=%ESC%[38;2;124;156;255m"`,
+        `set "C_CYAN=%ESC%[38;2;56;189;248m"`,
+        `set "C_GREEN=%ESC%[38;2;52;211;153m"`,
+        `set "C_RED=%ESC%[38;2;248;113;113m"`,
+        `set "C_AMBER=%ESC%[38;2;251;191;36m"`,
+        `set "C_MUTED=%ESC%[38;2;148;163;184m"`,
+        `set "C_DIM=%ESC%[38;2;100;116;139m"`,
+        `set "C_WHITE=%ESC%[97m"`,
+        `set "C_BOLD=%ESC%[1m"`,
+        `set "C_RESET=%ESC%[0m"`
+      ]
+    : [
+        `set "C_BRAND="`,
+        `set "C_CYAN="`,
+        `set "C_GREEN="`,
+        `set "C_RED="`,
+        `set "C_AMBER="`,
+        `set "C_MUTED="`,
+        `set "C_DIM="`,
+        `set "C_WHITE="`,
+        `set "C_BOLD="`,
+        `set "C_RESET="`
+      ];
 
   const overviewLines = steps.flatMap((s) => {
     const note = escapeBatEcho(formatStepNote(s));
@@ -141,6 +346,10 @@ function generateBatScript(
   const stepBlocks = steps.flatMap((s) => {
     const nextLabel = s.index < total ? `step_${s.index + 1}` : 'summary';
     const cmdLine = escapeBatPercent(s.resolvedCommand);
+    const execLine = opts.saveLogFile
+      ? `cmd /c "${cmdLine}" >> "%LOG_FILE%" 2>&1`
+      : `cmd /c "${cmdLine}"`;
+
     const lines = [
       `:step_${s.index}`,
       `title [${s.index}/${total}] Nexus - ${escapeBatEcho(s.name)}`,
@@ -148,7 +357,7 @@ function generateBatScript(
       `echo   %C_DIM%  $ ${escapeBatEcho(s.resolvedCommand)}%C_RESET%`,
       `echo.`,
       `call :now_cs STEP_START_CS`,
-      `cmd /c "${cmdLine}"`,
+      execLine,
       `set "STEP_EXIT=%ERRORLEVEL%"`,
       `call :now_cs STEP_END_CS`,
       `call :calc_elapsed "%STEP_START_CS%" "%STEP_END_CS%" STEP_ELAPSED`,
@@ -216,21 +425,11 @@ function generateBatScript(
     `setlocal EnableExtensions`,
     ``,
     `:: Gerado pelo Nexus Orchestrator`,
-    `for /f %%A in ('echo prompt $E ^| cmd') do set "ESC=%%A"`,
-    `set "C_BRAND=%ESC%[38;2;124;156;255m"`,
-    `set "C_CYAN=%ESC%[38;2;56;189;248m"`,
-    `set "C_GREEN=%ESC%[38;2;52;211;153m"`,
-    `set "C_RED=%ESC%[38;2;248;113;113m"`,
-    `set "C_AMBER=%ESC%[38;2;251;191;36m"`,
-    `set "C_MUTED=%ESC%[38;2;148;163;184m"`,
-    `set "C_DIM=%ESC%[38;2;100;116;139m"`,
-    `set "C_WHITE=%ESC%[97m"`,
-    `set "C_BOLD=%ESC%[1m"`,
-    `set "C_RESET=%ESC%[0m"`,
+    ...colorSetup,
     ``,
-    `set "SKIP_CONFIRM=0"`,
+    `set "SKIP_CONFIRM=${opts.confirmBeforeRun ? '0' : '1'}"`,
     `set "DRY_RUN=0"`,
-    `set "NO_PAUSE=0"`,
+    `set "NO_PAUSE=${opts.pauseOnFinish ? '0' : '1'}"`,
     ``,
     `:parse_args`,
     `if "%~1"=="" goto :args_done`,
@@ -260,8 +459,17 @@ function generateBatScript(
     ...(safeDescription
       ? [`echo   %C_BRAND%│%C_RESET%  %C_MUTED%Descricao:%C_RESET% ${safeDescription}`]
       : []),
+    ...(safeHeader
+      ? [`echo   %C_BRAND%│%C_RESET%  %C_MUTED%Nota     :%C_RESET% ${safeHeader}`]
+      : []),
     `echo   %C_BRAND%│%C_RESET%  %C_MUTED%Projeto  :%C_RESET% %C_CYAN%${safeProject}%C_RESET%`,
     `echo   %C_BRAND%│%C_RESET%  %C_MUTED%Pasta    :%C_RESET% %C_DIM%${safePath}%C_RESET%`,
+    ...(opts.envProfile
+      ? [`echo   %C_BRAND%│%C_RESET%  %C_MUTED%Perfil   :%C_RESET% %C_AMBER%${escapeBatEcho(opts.envProfile)}%C_RESET%`]
+      : []),
+    ...(opts.saveLogFile
+      ? [`echo   %C_BRAND%│%C_RESET%  %C_MUTED%Log      :%C_RESET% %C_DIM%${logFile}%C_RESET%`]
+      : []),
     `echo   %C_BRAND%│%C_RESET%  %C_MUTED%Etapas ^(${total}^):%C_RESET%`,
     ...overviewLines,
     `echo   %C_BRAND%╰──────────────────────────────────────────────────────────────────────────╯%C_RESET%`,
@@ -273,12 +481,18 @@ function generateBatScript(
     `echo.`,
     ``,
     `:begin_exec`,
-    `if not exist "${pathNoQuotes}\\" (`,
-    `  echo   %C_RED%✗ Pasta do projeto nao encontrada: ${safePath}%C_RESET%`,
-    `  if "%NO_PAUSE%"=="0" pause >nul`,
-    `  exit /b 1`,
-    `)`,
-    `pushd "${pathNoQuotes}"`,
+    ...(opts.useProjectDir
+      ? [
+          `if not exist "${pathNoQuotes}\\" (`,
+          `  echo   %C_RED%✗ Pasta do projeto nao encontrada: ${safePath}%C_RESET%`,
+          `  if "%NO_PAUSE%"=="0" pause >nul`,
+          `  exit /b 1`,
+          `)`,
+          `pushd "${pathNoQuotes}"`
+        ]
+      : []),
+    ...buildBatEnvLoaderLines(opts.envProfile),
+    ...(opts.saveLogFile ? [`set "LOG_FILE=${logFile}"`, `type nul > "%LOG_FILE%"`] : []),
     `call :now_cs PIPELINE_START_CS`,
     `set "PIPELINE_FAILED=0"`,
     ...initResults,
@@ -286,7 +500,7 @@ function generateBatScript(
     ``,
     ...stepBlocks,
     `:summary`,
-    `popd`,
+    ...(opts.useProjectDir ? [`popd`] : []),
     `call :now_cs PIPELINE_END_CS`,
     `call :calc_elapsed "%PIPELINE_START_CS%" "%PIPELINE_END_CS%" TOTAL_ELAPSED`,
     `echo   %C_BRAND%╭──────────────────────────────────────────────────────────────────────────╮%C_RESET%`,
@@ -301,6 +515,9 @@ function generateBatScript(
     `  echo   %C_BRAND%│%C_RESET%  %C_RED%Status: FALHOU%C_RESET%    %C_MUTED%Tempo total: %TOTAL_ELAPSED%%C_RESET%`,
     `  title [FALHOU] Nexus Pipeline - ${safePipeline}`,
     `)`,
+    ...(opts.saveLogFile
+      ? [`echo   %C_BRAND%│%C_RESET%  %C_DIM%Log salvo em: ${logFile}%C_RESET%`]
+      : []),
     `echo   %C_BRAND%╰──────────────────────────────────────────────────────────────────────────╯%C_RESET%`,
     `echo.`,
     `if "%NO_PAUSE%"=="0" (`,
@@ -367,15 +584,90 @@ function generateBatScript(
   return `${lines.join('\r\n')}\r\n`;
 }
 
-function generatePs1Script(
+function generatePs1RawScript(
   input: PipelineExportInput,
-  steps: ResolvedExportStep[]
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
+): string {
+  const psPath = escapePsSingleQuote(input.projectPath);
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
+
+  const lines: string[] = [
+    `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`,
+    `# Pipeline: ${input.pipelineName} (${input.projectName})`
+  ];
+  if (opts.customHeader) {
+    lines.push(`# ${opts.customHeader}`);
+  }
+  lines.push('');
+
+  if (opts.confirmBeforeRun) {
+    lines.push(
+      `Read-Host 'Pressione ENTER para executar ${escapePsSingleQuote(input.pipelineName)} (ou Ctrl+C para cancelar)' | Out-Null`,
+      ``
+    );
+  }
+
+  if (opts.useProjectDir) {
+    lines.push(`Push-Location -LiteralPath '${psPath}'`);
+  }
+  lines.push(`$exitCode = 0`, `try {`);
+
+  if (opts.saveLogFile) {
+    lines.push(`  Start-Transcript -Path '${logFile}' -Append | Out-Null`);
+  }
+
+  for (const envLine of buildPsEnvLoaderLines(opts.envProfile)) {
+    lines.push(`  ${envLine}`);
+  }
+
+  for (const s of steps) {
+    lines.push(`  $global:LASTEXITCODE = 0`, `  ${s.resolvedCommand}`);
+    if (s.onErrorAction === 'stop') {
+      lines.push(`  if ($LASTEXITCODE -ne $null -and $LASTEXITCODE -ne 0) { $exitCode = [int]$LASTEXITCODE; throw "Step failed" }`);
+    } else if (s.onErrorAction === 'run_command') {
+      lines.push(`  if ($LASTEXITCODE -ne $null -and $LASTEXITCODE -ne 0) {`);
+      lines.push(`    $exitCode = [int]$LASTEXITCODE`);
+      if (s.onErrorCommand) {
+        lines.push(`    ${s.onErrorCommand}`);
+      }
+      lines.push(`    throw "Step failed"`, `  }`);
+    }
+    if (s.onSuccessCommand) {
+      lines.push(`  if (-not $LASTEXITCODE -or $LASTEXITCODE -eq 0) { ${s.onSuccessCommand} }`);
+    }
+    lines.push('');
+  }
+
+  lines.push(`} catch {`, `  if ($exitCode -eq 0) { $exitCode = 1 }`, `} finally {`);
+  if (opts.saveLogFile) {
+    lines.push(`  Stop-Transcript | Out-Null`);
+  }
+  if (opts.useProjectDir) {
+    lines.push(`  Pop-Location`);
+  }
+  lines.push(`}`);
+
+  if (opts.pauseOnFinish) {
+    lines.push(`Read-Host 'Pressione ENTER para fechar' | Out-Null`);
+  }
+  lines.push(`exit $exitCode`);
+
+  return `${lines.join('\r\n')}\r\n`;
+}
+
+function generatePs1RichScript(
+  input: PipelineExportInput,
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
 ): string {
   const total = steps.length;
   const psPipeline = escapePsSingleQuote(input.pipelineName);
   const psProject = escapePsSingleQuote(input.projectName);
   const psPath = escapePsSingleQuote(input.projectPath);
   const psDesc = escapePsSingleQuote(input.description?.trim() ?? '');
+  const psHeader = escapePsSingleQuote(opts.customHeader ?? '');
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
 
   const stepEntries = steps.map((s) => {
     const onErrCmd = s.onErrorCommand ? `'${escapePsSingleQuote(s.onErrorCommand)}'` : '$null';
@@ -393,29 +685,47 @@ function generatePs1Script(
     ].join('\r\n');
   });
 
+  const colorBlock = opts.includeColors
+    ? [
+        `$esc = [char]27`,
+        `$C_BRAND = "$esc[38;2;124;156;255m"`,
+        `$C_CYAN  = "$esc[38;2;56;189;248m"`,
+        `$C_GREEN = "$esc[38;2;52;211;153m"`,
+        `$C_RED   = "$esc[38;2;248;113;113m"`,
+        `$C_AMBER = "$esc[38;2;251;191;36m"`,
+        `$C_MUTED = "$esc[38;2;148;163;184m"`,
+        `$C_DIM   = "$esc[38;2;100;116;139m"`,
+        `$C_WHITE = "$esc[97m"`,
+        `$C_BOLD  = "$esc[1m"`,
+        `$C_RESET = "$esc[0m"`
+      ]
+    : [
+        `$C_BRAND = ''`,
+        `$C_CYAN  = ''`,
+        `$C_GREEN = ''`,
+        `$C_RED   = ''`,
+        `$C_AMBER = ''`,
+        `$C_MUTED = ''`,
+        `$C_DIM   = ''`,
+        `$C_WHITE = ''`,
+        `$C_BOLD  = ''`,
+        `$C_RESET = ''`
+      ];
+
   const lines = [
     `param(`,
-    `  [Alias('y')][switch]$Yes,`,
+    `  [Alias('y')][switch]$Yes${opts.confirmBeforeRun ? '' : ' = $true'},`,
     `  [switch]$DryRun,`,
-    `  [switch]$NoPause,`,
+    `  [switch]$NoPause${opts.pauseOnFinish ? '' : ' = $true'},`,
     `  [Alias('h')][switch]$Help`,
     `)`,
     ``,
     `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)`,
-    `$esc = [char]27`,
-    `$C_BRAND = "$esc[38;2;124;156;255m"`,
-    `$C_CYAN  = "$esc[38;2;56;189;248m"`,
-    `$C_GREEN = "$esc[38;2;52;211;153m"`,
-    `$C_RED   = "$esc[38;2;248;113;113m"`,
-    `$C_AMBER = "$esc[38;2;251;191;36m"`,
-    `$C_MUTED = "$esc[38;2;148;163;184m"`,
-    `$C_DIM   = "$esc[38;2;100;116;139m"`,
-    `$C_WHITE = "$esc[97m"`,
-    `$C_BOLD  = "$esc[1m"`,
-    `$C_RESET = "$esc[0m"`,
+    ...colorBlock,
     ``,
     `$PipelineName = '${psPipeline}'`,
     `$Description  = '${psDesc}'`,
+    `$CustomHeader = '${psHeader}'`,
     `$ProjectName  = '${psProject}'`,
     `$ProjectPath  = '${psPath}'`,
     `$Steps = @(`,
@@ -444,8 +754,11 @@ function generatePs1Script(
     `Write-Host "  $C_BRAND├──────────────────────────────────────────────────────────────────────────┤$C_RESET"`,
     `Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Pipeline :$C_RESET $C_WHITE$PipelineName$C_RESET"`,
     `if ($Description) { Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Descricao:$C_RESET $Description" }`,
+    `if ($CustomHeader) { Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Nota     :$C_RESET $CustomHeader" }`,
     `Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Projeto  :$C_RESET $C_CYAN$ProjectName$C_RESET"`,
-    `Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Pasta    :$C_RESET $C_DIM$ProjectPath$C_RESET"`,
+    `Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Pasta    :$C_RESET $C_DIM${opts.useProjectDir ? '$ProjectPath' : 'Pasta atual ($PWD)'}$C_RESET"`,
+    ...(opts.envProfile ? [`Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Perfil   :$C_RESET $C_AMBER${escapePsSingleQuote(opts.envProfile)}$C_RESET"`] : []),
+    ...(opts.saveLogFile ? [`Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Log      :$C_RESET $C_DIM${logFile}$C_RESET"`] : []),
     `Write-Host "  $C_BRAND│$C_RESET  $C_MUTED Etapas (${total}):$C_RESET"`,
     `foreach ($s in $Steps) {`,
     `  Write-Host "  $C_BRAND│$C_RESET    $C_CYAN$($s.Index).$C_RESET $C_WHITE$($s.Name)$C_RESET$C_DIM$($s.Note)$C_RESET"`,
@@ -465,11 +778,15 @@ function generatePs1Script(
     `  Write-Host ""`,
     `}`,
     ``,
-    `if (-not (Test-Path -LiteralPath $ProjectPath -PathType Container)) {`,
-    `  Write-Host "  $C_RED✗ Pasta do projeto nao encontrada: $ProjectPath$C_RESET"`,
-    `  if (-not $NoPause) { Read-Host "  Pressione ENTER para fechar" | Out-Null }`,
-    `  exit 1`,
-    `}`,
+    ...(opts.useProjectDir
+      ? [
+          `if (-not (Test-Path -LiteralPath $ProjectPath -PathType Container)) {`,
+          `  Write-Host "  $C_RED✗ Pasta do projeto nao encontrada: $ProjectPath$C_RESET"`,
+          `  if (-not $NoPause) { Read-Host "  Pressione ENTER para fechar" | Out-Null }`,
+          `  exit 1`,
+          `}`
+        ]
+      : []),
     ``,
     `function Invoke-StepCmd([string]$Cmd) {`,
     `  $global:LASTEXITCODE = 0`,
@@ -482,8 +799,10 @@ function generatePs1Script(
     `$pipelineFailed = $false`,
     `$totalWatch = [System.Diagnostics.Stopwatch]::StartNew()`,
     ``,
-    `Push-Location -LiteralPath $ProjectPath`,
+    ...(opts.useProjectDir ? [`Push-Location -LiteralPath $ProjectPath`] : []),
     `try {`,
+    ...(opts.saveLogFile ? [`  Start-Transcript -Path '${logFile}' -Append | Out-Null`] : []),
+    ...buildPsEnvLoaderLines(opts.envProfile).map((l) => `  ${l}`),
     `  for ($i = 0; $i -lt $Steps.Count; $i++) {`,
     `    $s = $Steps[$i]`,
     `    $Host.UI.RawUI.WindowTitle = "[$($s.Index)/${total}] Nexus - $($s.Name)"`,
@@ -529,7 +848,8 @@ function generatePs1Script(
     `    }`,
     `  }`,
     `} finally {`,
-    `  Pop-Location`,
+    ...(opts.saveLogFile ? [`  Stop-Transcript | Out-Null`] : []),
+    ...(opts.useProjectDir ? [`  Pop-Location`] : []),
     `}`,
     ``,
     `$totalWatch.Stop()`,
@@ -554,6 +874,7 @@ function generatePs1Script(
     `  Write-Host "  $C_BRAND│$C_RESET  $C_RED Status: FALHOU$C_RESET    $C_MUTED Tempo total: $totalElapsed$C_RESET"`,
     `  $Host.UI.RawUI.WindowTitle = "[FALHOU] Nexus Pipeline - $PipelineName"`,
     `}`,
+    ...(opts.saveLogFile ? [`Write-Host "  $C_BRAND│$C_RESET  $C_DIM Log salvo em: ${logFile}$C_RESET"`] : []),
     `Write-Host "  $C_BRAND╰──────────────────────────────────────────────────────────────────────────╯$C_RESET"`,
     `Write-Host ""`,
     `if (-not $NoPause) { Read-Host "  Pressione ENTER para fechar" | Out-Null }`,
@@ -564,15 +885,78 @@ function generatePs1Script(
   return `${lines.join('\r\n')}\r\n`;
 }
 
-function generateShScript(
+function generateShRawScript(
   input: PipelineExportInput,
-  steps: ResolvedExportStep[]
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
+): string {
+  const shPath = escapeShSingleQuote(input.projectPath);
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
+
+  const lines: string[] = [
+    `#!/usr/bin/env bash`,
+    `set -u`,
+    `# Pipeline: ${input.pipelineName} (${input.projectName})`
+  ];
+  if (opts.customHeader) {
+    lines.push(`# ${opts.customHeader}`);
+  }
+  lines.push('');
+
+  if (opts.confirmBeforeRun) {
+    lines.push(
+      `if [ -t 0 ]; then read -r -p 'Pressione ENTER para executar ${escapeShSingleQuote(input.pipelineName)} (ou Ctrl+C para cancelar)... ' _; fi`,
+      ``
+    );
+  }
+
+  if (opts.useProjectDir) {
+    lines.push(`cd '${shPath}' || exit 1`);
+  }
+
+  if (opts.saveLogFile) {
+    lines.push(`exec > >(tee -a '${logFile}') 2>&1`);
+  }
+
+  lines.push(...buildShEnvLoaderLines(opts.envProfile), ``);
+
+  for (const s of steps) {
+    lines.push(s.resolvedCommand);
+    if (s.onErrorAction === 'stop') {
+      lines.push(`STATUS=$?; if [ "$STATUS" -ne 0 ]; then exit "$STATUS"; fi`);
+    } else if (s.onErrorAction === 'run_command') {
+      lines.push(`STATUS=$?; if [ "$STATUS" -ne 0 ]; then`);
+      if (s.onErrorCommand) {
+        lines.push(`  ${s.onErrorCommand}`);
+      }
+      lines.push(`  exit "$STATUS"`, `fi`);
+    }
+    if (s.onSuccessCommand) {
+      lines.push(`if [ "$?" -eq 0 ]; then ${s.onSuccessCommand}; fi`);
+    }
+    lines.push('');
+  }
+
+  if (opts.pauseOnFinish) {
+    lines.push(`if [ -t 0 ]; then read -r -p 'Pressione ENTER para fechar... ' _; fi`);
+  }
+  lines.push(`exit 0`);
+
+  return `${lines.join('\n')}\n`;
+}
+
+function generateShRichScript(
+  input: PipelineExportInput,
+  steps: ResolvedExportStep[],
+  opts: ResolvedPipelineExportOptions
 ): string {
   const total = steps.length;
   const shPipeline = escapeShSingleQuote(input.pipelineName);
   const shProject = escapeShSingleQuote(input.projectName);
   const shPath = escapeShSingleQuote(input.projectPath);
   const shDesc = escapeShSingleQuote(input.description?.trim() ?? '');
+  const shHeader = escapeShSingleQuote(opts.customHeader ?? '');
+  const logFile = `${slugifyName(input.pipelineName)}.log`;
 
   const stepArrays = steps.flatMap((s) => [
     `STEP_NAMES+=('${escapeShSingleQuote(s.name)}')`,
@@ -585,33 +969,42 @@ function generateShScript(
     `RES_TIME+=('-')`
   ]);
 
+  const colorSetup = opts.includeColors
+    ? [
+        `if [ -t 1 ] && [ -z "\${NO_COLOR:-}" ]; then`,
+        `  C_BRAND=$'\\033[38;2;124;156;255m'`,
+        `  C_CYAN=$'\\033[38;2;56;189;248m'`,
+        `  C_GREEN=$'\\033[38;2;52;211;153m'`,
+        `  C_RED=$'\\033[38;2;248;113;113m'`,
+        `  C_AMBER=$'\\033[38;2;251;191;36m'`,
+        `  C_MUTED=$'\\033[38;2;148;163;184m'`,
+        `  C_DIM=$'\\033[38;2;100;116;139m'`,
+        `  C_WHITE=$'\\033[97m'`,
+        `  C_BOLD=$'\\033[1m'`,
+        `  C_RESET=$'\\033[0m'`,
+        `else`,
+        `  C_BRAND="" C_CYAN="" C_GREEN="" C_RED="" C_AMBER="" C_MUTED="" C_DIM="" C_WHITE="" C_BOLD="" C_RESET=""`,
+        `fi`
+      ]
+    : [
+        `C_BRAND="" C_CYAN="" C_GREEN="" C_RED="" C_AMBER="" C_MUTED="" C_DIM="" C_WHITE="" C_BOLD="" C_RESET=""`
+      ];
+
   const lines = [
     `#!/usr/bin/env bash`,
     `set -u`,
     ``,
-    `if [ -t 1 ] && [ -z "\${NO_COLOR:-}" ]; then`,
-    `  C_BRAND=$'\\033[38;2;124;156;255m'`,
-    `  C_CYAN=$'\\033[38;2;56;189;248m'`,
-    `  C_GREEN=$'\\033[38;2;52;211;153m'`,
-    `  C_RED=$'\\033[38;2;248;113;113m'`,
-    `  C_AMBER=$'\\033[38;2;251;191;36m'`,
-    `  C_MUTED=$'\\033[38;2;148;163;184m'`,
-    `  C_DIM=$'\\033[38;2;100;116;139m'`,
-    `  C_WHITE=$'\\033[97m'`,
-    `  C_BOLD=$'\\033[1m'`,
-    `  C_RESET=$'\\033[0m'`,
-    `else`,
-    `  C_BRAND="" C_CYAN="" C_GREEN="" C_RED="" C_AMBER="" C_MUTED="" C_DIM="" C_WHITE="" C_BOLD="" C_RESET=""`,
-    `fi`,
+    ...colorSetup,
     ``,
     `PIPELINE_NAME='${shPipeline}'`,
     `DESCRIPTION='${shDesc}'`,
+    `CUSTOM_HEADER='${shHeader}'`,
     `PROJECT_NAME='${shProject}'`,
     `PROJECT_PATH='${shPath}'`,
     ``,
-    `SKIP_CONFIRM=0`,
+    `SKIP_CONFIRM=${opts.confirmBeforeRun ? '0' : '1'}`,
     `DRY_RUN=0`,
-    `NO_PAUSE=0`,
+    `NO_PAUSE=${opts.pauseOnFinish ? '0' : '1'}`,
     ``,
     `for arg in "$@"; do`,
     `  case "$arg" in`,
@@ -654,8 +1047,17 @@ function generateShScript(
     `if [ -n "$DESCRIPTION" ]; then`,
     `  printf '  %s│%s  %sDescricao:%s %s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$DESCRIPTION"`,
     `fi`,
+    `if [ -n "$CUSTOM_HEADER" ]; then`,
+    `  printf '  %s│%s  %sNota     :%s %s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$CUSTOM_HEADER"`,
+    `fi`,
     `printf '  %s│%s  %sProjeto  :%s %s%s%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$C_CYAN" "$PROJECT_NAME" "$C_RESET"`,
-    `printf '  %s│%s  %sPasta    :%s %s%s%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$C_DIM" "$PROJECT_PATH" "$C_RESET"`,
+    `printf '  %s│%s  %sPasta    :%s %s%s%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$C_DIM" "${opts.useProjectDir ? '$PROJECT_PATH' : 'Pasta atual ($PWD)'}" "$C_RESET"`,
+    ...(opts.envProfile
+      ? [`printf '  %s│%s  %sPerfil   :%s %s${escapeShSingleQuote(opts.envProfile)}%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$C_AMBER" "$C_RESET"`]
+      : []),
+    ...(opts.saveLogFile
+      ? [`printf '  %s│%s  %sLog      :%s %s${logFile}%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "$C_RESET" "$C_DIM" "$C_RESET"`]
+      : []),
     `printf '  %s│%s  %sEtapas (%d):%s\\n' "$C_BRAND" "$C_RESET" "$C_MUTED" "${total}" "$C_RESET"`,
     `for ((i = 0; i < ${total}; i++)); do`,
     `  printf '  %s│%s    %s%d.%s %s%s%s%s%s%s\\n' "$C_BRAND" "$C_RESET" "$C_CYAN" "$((i + 1))" "$C_RESET" "$C_WHITE" "\${STEP_NAMES[$i]}" "$C_RESET" "$C_DIM" "\${STEP_NOTES[$i]}" "$C_RESET"`,
@@ -683,13 +1085,18 @@ function generateShScript(
     `  echo ""`,
     `fi`,
     ``,
-    `if [ ! -d "$PROJECT_PATH" ]; then`,
-    `  printf '  %s✗ Pasta do projeto nao encontrada: %s%s\\n' "$C_RED" "$PROJECT_PATH" "$C_RESET"`,
-    `  pause_end`,
-    `  exit 1`,
-    `fi`,
-    ``,
-    `cd "$PROJECT_PATH" || exit 1`,
+    ...(opts.useProjectDir
+      ? [
+          `if [ ! -d "$PROJECT_PATH" ]; then`,
+          `  printf '  %s✗ Pasta do projeto nao encontrada: %s%s\\n' "$C_RED" "$PROJECT_PATH" "$C_RESET"`,
+          `  pause_end`,
+          `  exit 1`,
+          `fi`,
+          `cd "$PROJECT_PATH" || exit 1`
+        ]
+      : []),
+    ...(opts.saveLogFile ? [`exec > >(tee -a '${logFile}') 2>&1`] : []),
+    ...buildShEnvLoaderLines(opts.envProfile),
     `PIPELINE_FAILED=0`,
     `PIPELINE_START=$SECONDS`,
     ``,
@@ -755,6 +1162,9 @@ function generateShScript(
     `else`,
     `  printf '  %s│%s  %sStatus: FALHOU%s    %sTempo total: %s%s\\n' "$C_BRAND" "$C_RESET" "$C_RED" "$C_RESET" "$C_MUTED" "$TOTAL_ELAPSED" "$C_RESET"`,
     `fi`,
+    ...(opts.saveLogFile
+      ? [`printf '  %s│%s  %sLog salvo em: ${logFile}%s\\n' "$C_BRAND" "$C_RESET" "$C_DIM" "$C_RESET"`]
+      : []),
     `printf '  %s╰──────────────────────────────────────────────────────────────────────────╯%s\\n\\n' "$C_BRAND" "$C_RESET"`,
     `pause_end`,
     `exit "$PIPELINE_FAILED"`
@@ -768,7 +1178,8 @@ function generateShScript(
  */
 export function generatePipelineScript(
   input: PipelineExportInput,
-  format: PipelineExportFormat
+  format: PipelineExportFormat,
+  options?: PipelineExportOptions
 ): string {
   const enabledSteps = input.steps
     .filter((s) => s.enabled)
@@ -786,13 +1197,22 @@ export function generatePipelineScript(
     throw new Error('Este pipeline não possui nenhuma etapa habilitada para exportar.');
   }
 
+  const resolvedOpts = normalizeExportOptions(options);
+  const isRaw = resolvedOpts.style === 'raw';
+
   switch (format) {
     case 'ps1':
-      return generatePs1Script(input, enabledSteps);
+      return isRaw
+        ? generatePs1RawScript(input, enabledSteps, resolvedOpts)
+        : generatePs1RichScript(input, enabledSteps, resolvedOpts);
     case 'sh':
-      return generateShScript(input, enabledSteps);
+      return isRaw
+        ? generateShRawScript(input, enabledSteps, resolvedOpts)
+        : generateShRichScript(input, enabledSteps, resolvedOpts);
     case 'bat':
     default:
-      return generateBatScript(input, enabledSteps);
+      return isRaw
+        ? generateBatRawScript(input, enabledSteps, resolvedOpts)
+        : generateBatRichScript(input, enabledSteps, resolvedOpts);
   }
 }

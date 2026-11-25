@@ -8,6 +8,7 @@ import type {
   ExportPipelineResult,
   PipelineDTO,
   PipelineExportFormat,
+  PipelineExportOptions,
   RunExecutionOptions,
   RunLogEvent,
   RunStatusEvent,
@@ -86,7 +87,16 @@ interface NexusState {
   refreshProjectData: (projectId: string) => Promise<void>;
   savePipeline: (input: SavePipelineInput) => Promise<PipelineDTO>;
   deletePipeline: (pipelineId: string, projectId: string) => Promise<void>;
-  exportPipeline: (pipelineId: string, format: PipelineExportFormat) => Promise<ExportPipelineResult>;
+  previewExportPipeline: (
+    pipelineId: string,
+    format: PipelineExportFormat,
+    options?: PipelineExportOptions
+  ) => Promise<string>;
+  exportPipeline: (
+    pipelineId: string,
+    format: PipelineExportFormat,
+    options?: PipelineExportOptions
+  ) => Promise<ExportPipelineResult>;
 
   runSingleScript: (
     project: ScannedProject,
@@ -462,8 +472,12 @@ export const useNexusStore = create<NexusState>((set, get) => ({
     }
   },
 
-  exportPipeline: async (pipelineId, format) => {
-    return window.nexus.exportPipeline(pipelineId, format);
+  previewExportPipeline: async (pipelineId, format, options) => {
+    return window.nexus.previewExportPipeline(pipelineId, format, options);
+  },
+
+  exportPipeline: async (pipelineId, format, options) => {
+    return window.nexus.exportPipeline(pipelineId, format, options);
   },
 
   runSingleScript: async (project, scriptName, options) => {
