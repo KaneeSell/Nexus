@@ -4,6 +4,8 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-24
+
 ### Corrigido
 - **CI Linux (`pipelineExporter.test.ts`):** garantida cobertura de 100% de branches no `formatStepNote` independentemente do sistema operacional (Windows/Linux), adicionado teste real em `bash` para scripts `.sh` e aumentado `testTimeout` para `15000ms` em `vitest.config.ts`.
 
