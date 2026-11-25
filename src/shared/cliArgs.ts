@@ -1,3 +1,5 @@
+import type { PipelineExportFormat } from './types';
+
 export type CliTab = 'scripts' | 'pipelines' | 'history';
 
 export type CliSubcommand =
@@ -10,12 +12,16 @@ export type CliSubcommand =
   | 'scripts'
   | 'pipelines'
   | 'history'
+  | 'export'
   | null;
 
 export interface ParsedCliArgs {
   subcommand: CliSubcommand;
   targetPath: string | null;
   runTarget: string | null;
+  exportTarget: string | null;
+  exportFormat: PipelineExportFormat | null;
+  outputPath: string | null;
   newWindow: boolean;
   gui: boolean;
   sync: boolean;
@@ -50,7 +56,8 @@ const SUBCOMMANDS = new Set<Exclude<CliSubcommand, null>>([
   'projects',
   'scripts',
   'pipelines',
-  'history'
+  'history',
+  'export'
 ]);
 
 function clampDepth(raw: string | undefined): number | null {
@@ -78,11 +85,23 @@ function parseTheme(raw: string | undefined): 'dark' | 'light' | null {
   return null;
 }
 
+function parseExportFormat(raw: string | undefined): PipelineExportFormat | null {
+  if (!raw) return null;
+  const normalized = raw.trim().toLowerCase().replace(/^\./, '');
+  if (normalized === 'bat' || normalized === 'ps1' || normalized === 'sh') {
+    return normalized;
+  }
+  return null;
+}
+
 export function parseCliArgs(argv: string[]): ParsedCliArgs {
   const result: ParsedCliArgs = {
     subcommand: null,
     targetPath: null,
     runTarget: null,
+    exportTarget: null,
+    exportFormat: null,
+    outputPath: null,
     newWindow: false,
     gui: false,
     sync: false,
@@ -227,6 +246,14 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
       case '--doctor':
         result.doctor = true;
         break;
+      case '-f':
+      case '--format':
+        result.exportFormat = parseExportFormat(readNextValue());
+        break;
+      case '-o':
+      case '--out':
+        result.outputPath = readNextValue() ?? null;
+        break;
       default:
         break;
     }
@@ -237,6 +264,9 @@ export function parseCliArgs(argv: string[]): ParsedCliArgs {
     if (result.subcommand === 'run') {
       result.runTarget = positionals[1] ?? null;
       result.targetPath = positionals[2] ?? null;
+    } else if (result.subcommand === 'export') {
+      result.exportTarget = positionals[1] ?? null;
+      result.outputPath = result.outputPath ?? positionals[2] ?? null;
     } else if (
       result.subcommand === 'ls' ||
       result.subcommand === 'pin' ||
@@ -275,7 +305,8 @@ export function isTerminalOnlyArgs(args: ParsedCliArgs): boolean {
     args.subcommand === 'projects' ||
     args.subcommand === 'scripts' ||
     args.subcommand === 'pipelines' ||
-    args.subcommand === 'history'
+    args.subcommand === 'history' ||
+    args.subcommand === 'export'
   ) {
     return true;
   }
@@ -329,6 +360,7 @@ Subcomandos (DB-First):
   pipelines [projeto]          Lista pipelines salvos no SQLite
   history [projeto]            Exibe histórico de execuções salvo no SQLite
   run <nome> [caminho]         Executa pipeline ou script (DB-first ou por caminho)
+  export <pipeline> [arquivo]  Exporta pipeline como script .bat, .ps1 ou .sh
   ls [caminho]                 Escaneia e lista projetos da pasta atual
   pin [caminho]                Fixa a pasta nos workspaces favoritos
   doctor                       Verifica Node, gerenciadores de pacote, PATH e SQLite
@@ -357,6 +389,10 @@ Consultas em Pasta / Saída:
       --pipelines              Lista pipelines salvos para o projeto
       --history [n]            Mostra as últimas n execuções (padrão: 10)
       --json                   Formata a saída em JSON
+
+Exportação de Pipeline:
+  -f, --format <bat|ps1|sh>    Formato do script exportado
+  -o, --out <arquivo>          Caminho de destino do script exportado
 
 Sistema:
       --db-path                Imprime o caminho do banco SQLite

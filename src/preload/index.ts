@@ -28,6 +28,7 @@ const nexusApi: NexusAPI = {
   listPipelines: (projectId) => ipcRenderer.invoke('pipeline:list', projectId),
   savePipeline: (input) => ipcRenderer.invoke('pipeline:save', input),
   deletePipeline: (pipelineId) => ipcRenderer.invoke('pipeline:delete', pipelineId),
+  exportPipeline: (pipelineId, format) => ipcRenderer.invoke('pipeline:export', pipelineId, format),
 
   runScript: (input) => ipcRenderer.invoke('runner:runScript', input),
   runScriptsBatch: (input) => ipcRenderer.invoke('runner:runScriptsBatch', input),

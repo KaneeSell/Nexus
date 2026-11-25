@@ -1,6 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import {
   Alert,
@@ -11,10 +14,14 @@ import {
   CardContent,
   Chip,
   IconButton,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
   Typography
 } from '@mui/material';
-import type { PipelineDTO } from '../../../shared/types';
+import { useState } from 'react';
+import type { PipelineDTO, PipelineExportFormat } from '../../../shared/types';
 import { useNexusStore } from '../store/useNexusStore';
 
 interface PipelinesTabProps {
@@ -37,10 +44,43 @@ function errorLabel(action: string): string {
 export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabProps) {
   const pipelines = useNexusStore((s) => s.pipelines);
   const activeRun = useNexusStore((s) => s.activeRun);
+  const appInfo = useNexusStore((s) => s.appInfo);
   const runPipeline = useNexusStore((s) => s.runPipeline);
   const deletePipeline = useNexusStore((s) => s.deletePipeline);
+  const exportPipeline = useNexusStore((s) => s.exportPipeline);
+
+  const [exportMenu, setExportMenu] = useState<{
+    anchorEl: HTMLElement;
+    pipeline: PipelineDTO;
+  } | null>(null);
+  const [exportFeedback, setExportFeedback] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+    filePath?: string;
+  } | null>(null);
 
   const isRunning = activeRun?.status === 'running';
+  const isWindows = (appInfo?.platform ?? 'win32') === 'win32';
+
+  const handleExport = async (pipeline: PipelineDTO, format: PipelineExportFormat): Promise<void> => {
+    setExportMenu(null);
+    setExportFeedback(null);
+    try {
+      const result = await exportPipeline(pipeline.id, format);
+      if (!result.canceled && result.filePath) {
+        setExportFeedback({
+          severity: 'success',
+          message: `Pipeline "${pipeline.name}" exportado para ${result.filePath}`,
+          filePath: result.filePath
+        });
+      }
+    } catch (err) {
+      setExportFeedback({
+        severity: 'error',
+        message: err instanceof Error ? err.message : String(err)
+      });
+    }
+  };
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -53,6 +93,30 @@ export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabPro
         </Button>
       </Box>
 
+      {exportFeedback && (
+        <Alert
+          severity={exportFeedback.severity}
+          onClose={() => setExportFeedback(null)}
+          action={
+            exportFeedback.filePath ? (
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<FolderOpenIcon fontSize="small" />}
+                onClick={() => {
+                  const dir = exportFeedback.filePath!.replace(/[\\/][^\\/]+$/, '');
+                  void window.nexus.openInExplorer(dir);
+                }}
+              >
+                Abrir pasta
+              </Button>
+            ) : undefined
+          }
+        >
+          {exportFeedback.message}
+        </Alert>
+      )}
+
       {pipelines.length === 0 ? (
         <Alert severity="info">
           Nenhum pipeline criado ainda para este projeto. Crie um conjunto de comandos (ex:{' '}
@@ -61,75 +125,126 @@ export function PipelinesTab({ projectId, onCreateNew, onEdit }: PipelinesTabPro
         </Alert>
       ) : (
         <Stack spacing={1.5}>
-          {pipelines.map((pipeline) => (
-            <Card key={pipeline.id} variant="outlined">
-              <CardContent sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box>
-                    <Typography variant="subtitle1" fontWeight={700}>
-                      {pipeline.name}
-                    </Typography>
-                    {pipeline.description && (
-                      <Typography variant="body2" color="text.secondary">
-                        {pipeline.description}
+          {pipelines.map((pipeline) => {
+            const enabledCount = pipeline.steps.filter((s) => s.enabled).length;
+            return (
+              <Card key={pipeline.id} variant="outlined">
+                <CardContent sx={{ pb: 1 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      mb: 1
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={700}>
+                        {pipeline.name}
                       </Typography>
-                    )}
-                  </Box>
-                  <Chip
-                    size="small"
-                    label={`${pipeline.steps.filter((s) => s.enabled).length} etapa(s) ativa(s)`}
-                    variant="outlined"
-                  />
-                </Box>
-
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {pipeline.steps.map((step, index) => (
+                      {pipeline.description && (
+                        <Typography variant="body2" color="text.secondary">
+                          {pipeline.description}
+                        </Typography>
+                      )}
+                    </Box>
                     <Chip
-                      key={step.id}
                       size="small"
-                      variant={step.enabled ? 'filled' : 'outlined'}
-                      color={step.enabled ? 'default' : 'warning'}
-                      label={`${index + 1}. ${step.name} (${errorLabel(step.onErrorAction)})`}
-                      sx={{ opacity: step.enabled ? 1 : 0.6 }}
+                      label={`${enabledCount} etapa(s) ativa(s)`}
+                      variant="outlined"
                     />
-                  ))}
-                </Stack>
-              </CardContent>
+                  </Box>
 
-              <CardActions sx={{ px: 2, pb: 1.5, justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<PlayArrowIcon />}
-                    disabled={isRunning}
-                    onClick={() => void runPipeline(pipeline.id)}
-                  >
-                    Executar
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<EditIcon />}
-                    onClick={() => onEdit(pipeline)}
-                  >
-                    Editar / Reordenar
-                  </Button>
-                </Stack>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {pipeline.steps.map((step, index) => (
+                      <Chip
+                        key={step.id}
+                        size="small"
+                        variant={step.enabled ? 'filled' : 'outlined'}
+                        color={step.enabled ? 'default' : 'warning'}
+                        label={`${index + 1}. ${step.name} (${errorLabel(step.onErrorAction)})`}
+                        sx={{ opacity: step.enabled ? 1 : 0.6 }}
+                      />
+                    ))}
+                  </Stack>
+                </CardContent>
 
-                <IconButton
-                  size="small"
-                  color="error"
-                  title="Excluir pipeline"
-                  onClick={() => void deletePipeline(pipeline.id, projectId)}
-                >
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </CardActions>
-            </Card>
-          ))}
+                <CardActions sx={{ px: 2, pb: 1.5, justifyContent: 'space-between' }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<PlayArrowIcon />}
+                      disabled={isRunning}
+                      onClick={() => void runPipeline(pipeline.id)}
+                    >
+                      Executar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<EditIcon />}
+                      onClick={() => onEdit(pipeline)}
+                    >
+                      Editar / Reordenar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      endIcon={<ArrowDropDownIcon />}
+                      disabled={enabledCount === 0}
+                      onClick={(e) => setExportMenu({ anchorEl: e.currentTarget, pipeline })}
+                    >
+                      Exportar
+                    </Button>
+                  </Stack>
+
+                  <IconButton
+                    size="small"
+                    color="error"
+                    title="Excluir pipeline"
+                    onClick={() => void deletePipeline(pipeline.id, projectId)}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </CardActions>
+              </Card>
+            );
+          })}
         </Stack>
       )}
+
+      <Menu
+        anchorEl={exportMenu?.anchorEl ?? null}
+        open={Boolean(exportMenu)}
+        onClose={() => setExportMenu(null)}
+      >
+        <MenuItem
+          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'bat')}
+        >
+          <ListItemText
+            primary={`Windows Batch (.bat)${isWindows ? ' — recomendado' : ''}`}
+            secondary="Abre no CMD / Windows Terminal com resumo e pause"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'ps1')}
+        >
+          <ListItemText
+            primary="PowerShell (.ps1)"
+            secondary="Script PowerShell com cores ANSI e cronômetro"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={() => exportMenu && void handleExport(exportMenu.pipeline, 'sh')}
+        >
+          <ListItemText
+            primary={`Shell Script (.sh)${!isWindows ? ' — recomendado' : ''}`}
+            secondary="Bash executável para Linux/macOS"
+          />
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }

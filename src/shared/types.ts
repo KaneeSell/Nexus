@@ -12,6 +12,14 @@ export type StepStatus = 'pending' | 'running' | 'success' | 'failed' | 'skipped
 
 export type StartupMode = 'last' | 'fixed' | 'empty';
 
+export type PipelineExportFormat = 'bat' | 'ps1' | 'sh';
+
+export interface ExportPipelineResult {
+  canceled: boolean;
+  filePath?: string;
+  format?: PipelineExportFormat;
+}
+
 export type ExternalToolCategory = 'ide' | 'ai_cli' | 'terminal';
 
 export interface DetectedToolDTO {
@@ -154,6 +162,7 @@ export interface CliStatusDTO {
 
 export interface AppInfoDTO {
   version: string;
+  platform: string;
   isPackaged: boolean;
   dbPath: string;
   userDataPath: string;
@@ -219,6 +228,7 @@ export interface NexusAPI {
   listPipelines: (projectId: string) => Promise<PipelineDTO[]>;
   savePipeline: (input: SavePipelineInput) => Promise<PipelineDTO>;
   deletePipeline: (pipelineId: string) => Promise<void>;
+  exportPipeline: (pipelineId: string, format: PipelineExportFormat) => Promise<ExportPipelineResult>;
 
   runScript: (
     input: {

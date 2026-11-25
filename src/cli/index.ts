@@ -14,6 +14,7 @@ import type {
   CliLaunchOptions,
   OnErrorAction,
   PackageManager,
+  PipelineExportFormat,
   ScannedProject,
   StepKind
 } from '../shared/types';
@@ -23,6 +24,10 @@ import {
   getPrisma,
   resolveDatabasePath
 } from '../main/db/prisma';
+import {
+  generatePipelineScript,
+  suggestExportFilename
+} from '../main/engine/pipelineExporter';
 import { ProcessRunner, type ExecutableStep } from '../main/engine/processRunner';
 import { syncDatabase } from '../main/scanner/dbSync';
 import { scanWorkspace } from '../main/scanner/workspaceScanner';
@@ -413,6 +418,113 @@ async function handleDbHistory(args: ParsedCliArgs): Promise<number> {
   return 0;
 }
 
+async function handleExportPipeline(args: ParsedCliArgs): Promise<number> {
+  await ensureDatabaseReady();
+  await maybeRunSync(args);
+
+  const targetName = args.exportTarget ?? args.runPipeline;
+  if (!targetName) {
+    const msg = 'Informe o nome do pipeline: `nexus export <pipeline> [--format bat|ps1|sh] [--out arquivo]`.';
+    if (args.json) console.log(JSON.stringify({ ok: false, error: msg }));
+    else console.error(msg);
+    return 1;
+  }
+
+  const prisma = getPrisma();
+  const projects = await prisma.projectRecord.findMany({
+    include: {
+      pipelines: {
+        include: { steps: { orderBy: { order: 'asc' } } },
+        orderBy: { updatedAt: 'desc' }
+      }
+    },
+    orderBy: { lastScannedAt: 'desc' }
+  });
+
+  const candidateProjects = args.project
+    ? (() => {
+        const matched = matchDbProject(projects, args.project);
+        return matched ? [matched] : [];
+      })()
+    : projects;
+
+  const needle = targetName.trim().toLowerCase();
+  let matchedProject: (typeof projects)[number] | null = null;
+  let matchedPipeline: (typeof projects)[number]['pipelines'][number] | null = null;
+
+  for (const proj of candidateProjects) {
+    const found =
+      proj.pipelines.find((pl) => pl.name.toLowerCase() === needle) ??
+      proj.pipelines.find((pl) => pl.name.toLowerCase().includes(needle));
+    if (found) {
+      matchedProject = proj;
+      matchedPipeline = found;
+      break;
+    }
+  }
+
+  if (!matchedProject || !matchedPipeline) {
+    const msg = `Pipeline "${targetName}" não encontrado no SQLite.`;
+    if (args.json) console.log(JSON.stringify({ ok: false, error: msg }));
+    else console.error(msg);
+    return 1;
+  }
+
+  const format: PipelineExportFormat =
+    args.exportFormat ?? (process.platform === 'win32' ? 'bat' : 'sh');
+
+  const content = generatePipelineScript(
+    {
+      pipelineName: matchedPipeline.name,
+      description: matchedPipeline.description,
+      projectName: matchedProject.name,
+      projectPath: matchedProject.path,
+      packageManager: (matchedProject.packageManager || 'npm') as PackageManager,
+      steps: matchedPipeline.steps.map((s) => ({
+        name: s.name,
+        kind: (s.kind === 'command' ? 'command' : 'script') as StepKind,
+        command: s.command,
+        onErrorAction: (['stop', 'continue', 'run_command'].includes(s.onErrorAction)
+          ? s.onErrorAction
+          : 'stop') as OnErrorAction,
+        onErrorCommand: s.onErrorCommand,
+        onSuccessCommand: s.onSuccessCommand,
+        enabled: s.enabled
+      }))
+    },
+    format
+  );
+
+  const outFile = args.outputPath
+    ? path.resolve(process.cwd(), args.outputPath)
+    : path.join(matchedProject.path, suggestExportFilename(matchedPipeline.name, format));
+
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, content, 'utf-8');
+  if (format === 'sh' && process.platform !== 'win32') {
+    fs.chmodSync(outFile, 0o755);
+  }
+
+  if (args.json) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          pipeline: matchedPipeline.name,
+          project: matchedProject.name,
+          format,
+          filePath: outFile
+        },
+        null,
+        2
+      )
+    );
+  } else {
+    console.log(`Pipeline "${matchedPipeline.name}" exportado (${format}) para: ${outFile}`);
+  }
+  return 0;
+}
+
 async function runStepsInTerminal(params: {
   projectId: string;
   projectName: string;
@@ -702,6 +814,10 @@ async function runTerminalMode(args: ParsedCliArgs): Promise<number> {
 
   if (args.subcommand === 'history') {
     return handleDbHistory(args);
+  }
+
+  if (args.subcommand === 'export') {
+    return handleExportPipeline(args);
   }
 
   if (

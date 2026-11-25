@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type {
   CliLaunchOptions,
@@ -5,6 +7,7 @@ import type {
   OnErrorAction,
   PackageManager,
   PipelineDTO,
+  PipelineExportFormat,
   RunExecutionOptions,
   RunScriptsBatchInput,
   RunStatus,
@@ -15,6 +18,7 @@ import type {
   WorkspaceScanOptions
 } from '../../shared/types';
 import { getPrisma, resolveDatabasePath } from '../db/prisma';
+import { generatePipelineScript, suggestExportFilename } from '../engine/pipelineExporter';
 import { ProcessRunner, type ExecutableStep } from '../engine/processRunner';
 import { scanWorkspace } from '../scanner/workspaceScanner';
 import { getCliStatus, installCliToPath, uninstallCliFromPath } from '../system/cliManager';
@@ -250,6 +254,82 @@ export function registerIpcHandlers(
     await prisma.pipeline.delete({ where: { id: pipelineId } });
   });
 
+  ipcMain.handle(
+    'pipeline:export',
+    async (event, pipelineId: string, format: PipelineExportFormat) => {
+      const prisma = getPrisma();
+      const pipeline = await prisma.pipeline.findUnique({
+        where: { id: pipelineId },
+        include: {
+          project: true,
+          steps: { orderBy: { order: 'asc' } }
+        }
+      });
+
+      if (!pipeline) {
+        throw new Error('Pipeline não encontrado.');
+      }
+
+      const content = generatePipelineScript(
+        {
+          pipelineName: pipeline.name,
+          description: pipeline.description,
+          projectName: pipeline.project.name,
+          projectPath: pipeline.project.path,
+          packageManager: (pipeline.project.packageManager || 'npm') as PackageManager,
+          steps: pipeline.steps.map((s) => ({
+            name: s.name,
+            kind: (s.kind === 'command' ? 'command' : 'script') as StepKind,
+            command: s.command,
+            onErrorAction: (['stop', 'continue', 'run_command'].includes(s.onErrorAction)
+              ? s.onErrorAction
+              : 'stop') as OnErrorAction,
+            onErrorCommand: s.onErrorCommand,
+            onSuccessCommand: s.onSuccessCommand,
+            enabled: s.enabled
+          }))
+        },
+        format
+      );
+
+      const defaultPath = path.join(
+        pipeline.project.path,
+        suggestExportFilename(pipeline.name, format)
+      );
+      const filterLabel =
+        format === 'bat'
+          ? 'Windows Batch Script (*.bat)'
+          : format === 'ps1'
+            ? 'PowerShell Script (*.ps1)'
+            : 'Shell Script (*.sh)';
+
+      const win = BrowserWindow.fromWebContents(event.sender) ?? getPrimaryWindow();
+      const saveOptions: Electron.SaveDialogOptions = {
+        title: `Exportar Pipeline "${pipeline.name}"`,
+        defaultPath,
+        filters: [{ name: filterLabel, extensions: [format] }]
+      };
+      const dialogResult = win
+        ? await dialog.showSaveDialog(win, saveOptions)
+        : await dialog.showSaveDialog(saveOptions);
+
+      if (dialogResult.canceled || !dialogResult.filePath) {
+        return { canceled: true };
+      }
+
+      await fs.promises.writeFile(dialogResult.filePath, content, 'utf-8');
+      if (format === 'sh' && process.platform !== 'win32') {
+        await fs.promises.chmod(dialogResult.filePath, 0o755);
+      }
+
+      return {
+        canceled: false,
+        filePath: dialogResult.filePath,
+        format
+      };
+    }
+  );
+
   const callbacks = {
     onLog: (event: unknown) => broadcastToRenderers('runner:log', event),
     onRunStatus: (event: unknown) => broadcastToRenderers('runner:status', event),
@@ -429,6 +509,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle('system:getAppInfo', async () => ({
     version: app.getVersion(),
+    platform: process.platform,
     isPackaged: app.isPackaged,
     dbPath: resolveDatabasePath(),
     userDataPath: app.getPath('userData')
