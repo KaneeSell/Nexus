@@ -4,6 +4,8 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 ### Adicionado
 - **Personalização da Exportação de Pipelines (`ExportPipelineDialog` + CLI):** escolha entre estilo **Personalizado (Nexus)** ou **Cru (só comandos)**, pré-visualização ao vivo com cópia rápida e opções configuráveis (`confirmBeforeRun`, `pauseOnFinish`, `includeColors`, `useProjectDir` / `--portable`, `saveLogFile` / `--log`, perfil `.env` e cabeçalho personalizado).
 
