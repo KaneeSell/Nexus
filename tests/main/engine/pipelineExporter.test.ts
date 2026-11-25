@@ -74,6 +74,13 @@ function makeInput(overrides: Partial<PipelineExportInput> = {}): PipelineExport
         onErrorCommand: '   ',
         onSuccessCommand: '   ',
         enabled: true
+      },
+      {
+        name: 'Plain Stop Step',
+        kind: 'script',
+        command: 'test',
+        onErrorAction: 'stop',
+        enabled: true
       }
     ],
     ...overrides
@@ -483,6 +490,69 @@ describe('generatePipelineScript (rich & raw)', () => {
         expect(execErr.stdout).toMatch(/\d+\.\d{2}s/);
       }
       expect(ranFallback).toBe(true);
+    });
+  } else {
+    it('executes rich and raw .sh scripts in real bash for dry-run and success', () => {
+      const dir = makeTempDir();
+      const richSh = generatePipelineScript(
+        {
+          pipelineName: 'Bash Test',
+          description: 'Runs on bash',
+          projectName: 'temp-proj',
+          projectPath: dir,
+          packageManager: 'npm',
+          steps: [
+            {
+              name: 'Plain Step',
+              kind: 'command',
+              command: 'echo sh-rich-ok',
+              onErrorAction: 'stop',
+              enabled: true
+            }
+          ]
+        },
+        'sh'
+      );
+      const richFile = path.join(dir, 'rich.sh');
+      fs.writeFileSync(richFile, richSh, 'utf-8');
+      fs.chmodSync(richFile, 0o755);
+
+      const dryOut = execFileSync('bash', [richFile, '--dry-run', '--no-pause'], {
+        encoding: 'utf-8'
+      });
+      expect(dryOut).toContain('[DRY-RUN]');
+
+      const runOut = execFileSync('bash', [richFile, '--yes', '--no-pause'], {
+        encoding: 'utf-8'
+      });
+      expect(runOut).toContain('sh-rich-ok');
+      expect(runOut).toContain('Status: SUCESSO');
+
+      const rawSh = generatePipelineScript(
+        {
+          pipelineName: 'Bash Raw',
+          projectName: 'temp-proj',
+          projectPath: dir,
+          packageManager: 'npm',
+          steps: [
+            {
+              name: 'Raw Step',
+              kind: 'command',
+              command: 'echo sh-raw-ok',
+              onErrorAction: 'stop',
+              enabled: true
+            }
+          ]
+        },
+        'sh',
+        { style: 'raw' }
+      );
+      const rawFile = path.join(dir, 'raw.sh');
+      fs.writeFileSync(rawFile, rawSh, 'utf-8');
+      fs.chmodSync(rawFile, 0o755);
+
+      const rawOut = execFileSync('bash', [rawFile], { encoding: 'utf-8' });
+      expect(rawOut).toContain('sh-raw-ok');
     });
   }
 });
