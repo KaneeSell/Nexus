@@ -15,6 +15,8 @@ flowchart LR
     E --> F["6. Rodar npm.cmd run verify"]
     F -->|Falhou| B
     F -->|Passou| G["7. Commits atômicos (Conventional Commits)"]
+    G --> H["8. Push main + Tag vX.Y.Z"]
+    H --> I["9. Acompanhar GitHub Actions (CI + Release) até 100% verde"]
 ```
 
 ---
@@ -55,9 +57,9 @@ Esse comando executa em sequência:
 2. `npm run test:coverage` — toda a suíte Vitest com validação obrigatória de 100% por arquivo.
 3. `npm run build` — build completo do Electron + bundle `out/cli/index.js` + bundle `out/cli/tui.mjs`.
 
-O mesmo portão é executado automaticamente no GitHub Actions:
+O mesmo portão é executado automaticamente no GitHub Actions e deve ser acompanhado de ponta a ponta após todo push/tag até concluir com sucesso:
 - [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (push e PR em `main` no Ubuntu e Windows).
-- [`.github/workflows/build.yml`](../.github/workflows/build.yml) (geração dos instaladores Windows/Linux e publicação de Releases).
+- [`.github/workflows/build.yml`](../.github/workflows/build.yml) (geração dos instaladores Windows/Linux e publicação de Releases em tags `v*`).
 
 ---
 

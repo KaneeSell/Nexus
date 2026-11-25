@@ -30,4 +30,7 @@ Estas regras aplicam-se a **toda** alteração de código ou documentação nest
 7. **Commits atômicos seguindo Conventional Commits ([docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)):**
    - Verifique `git status` e `git diff`. **Nunca** commite `.env`, `prisma/*.db`, `out/`, `dist/`, `coverage/` ou `node_modules/`.
    - Use `<tipo>(<escopo opcional>): <descrição curta no imperativo>` (ex.: `fix(tui): ...`, `feat(export): ...`, `test: ...`, `docs: ...`) e finalize o bump com `chore(release): bump version to vX.Y.Z`.
-   - Só execute `git push` ou crie tags de release (`vX.Y.Z`) quando explicitamente solicitado pelo usuário.
+8. **Publicação e Acompanhamento de Ponta a Ponta no GitHub Actions (obrigatório):**
+   - Toda alteração com código/versão nova deve ser enviada ao GitHub (`git push origin main`) acompanhada da tag anotada da nova versão (`git tag -a vX.Y.Z -m "Release vX.Y.Z"` e `git push origin vX.Y.Z`).
+   - Acompanhe os workflows do GitHub Actions (`CI` no Ubuntu + Windows e `Build & Release Nexus` no Windows + Linux + job `release`) via API do GitHub (`https://api.github.com/repos/KaneeSell/Nexus/actions/runs` e `/actions/runs/{id}/jobs`) até **todos** os jobs concluírem com `conclusion: success` e a Release `vX.Y.Z` estar publicada.
+   - Se algum job falhar, diagnostique a etapa que falhou, corrija o problema, rode `npm.cmd run verify`, gere nova versão `PATCH` (se a tag já tiver sido publicada), faça push e acompanhe novamente até ficar 100% verde.

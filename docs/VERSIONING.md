@@ -50,4 +50,4 @@ npm.cmd run version:major
    - Rodar `npm.cmd run version:patch` / `version:minor` / `version:major` (ou `npm.cmd run version:bump`).
 4. Rodar `npm.cmd run verify` (`typecheck` + `test:coverage` + `build`) para recompilar `out/cli/*` e `out/main/*` já com a nova versão embutida.
 5. Commitar o bump (`chore(release): bump version to vX.Y.Z`).
-6. Criar tag `vX.Y.Z` + `git push` somente quando o usuário solicitar publicação de release.
+6. Fazer `git push origin main`, criar a tag anotada (`git tag -a vX.Y.Z -m "Release vX.Y.Z"`), enviar a tag (`git push origin vX.Y.Z`) e acompanhar os workflows `CI` e `Build & Release Nexus` no GitHub Actions até todos os jobs e a Release concluírem com sucesso.

@@ -62,4 +62,9 @@ If any step fails, fix all errors and re-run `npm.cmd run verify` until it exits
 
 - Check `git status` and `git diff`. Ensure `.env`, `prisma/*.db`, `out/`, `dist/`, and `coverage/` are not staged.
 - Commit code/tests/docs in atomic Conventional Commits following [docs/GIT_WORKFLOW.md](../../../docs/GIT_WORKFLOW.md), plus `chore(release): bump version to vX.Y.Z` when bumped.
-- Do not push or create release tags unless explicitly asked by the user.
+
+## 8. Push, Release Tag & Monitor GitHub Actions End-to-End
+
+- Push `main` (`git push origin main`) and, whenever a new version `vX.Y.Z` was generated, create and push the annotated tag (`git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`).
+- Always monitor GitHub Actions (`CI` on Ubuntu + Windows and `Build & Release Nexus` on Windows + Linux + `release`) via `https://api.github.com/repos/KaneeSell/Nexus/actions/runs` until every job finishes with `conclusion: success` and the GitHub Release `vX.Y.Z` is published.
+- If any job fails, inspect the failing job step, fix the root cause, re-run `npm.cmd run verify`, bump a `PATCH` version if the tag was already pushed, push again, and monitor until all workflows are green.

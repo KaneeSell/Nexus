@@ -93,12 +93,13 @@ O Nexus segue **Semantic Versioning (`MAJOR.MINOR.PATCH`)** automatizado — con
    git add package.json package-lock.json CHANGELOG.md
    git commit -m "chore(release): bump version to v0.2.0"
    ```
-5. Quando desejar publicar uma Release pública no GitHub (somente quando solicitado), dê `git push origin main` e envie a tag anotada `vX.Y.Z`:
+5. Envie a branch `main` e a tag anotada `vX.Y.Z` para o GitHub (obrigatório em toda entrega com nova versão):
    ```bash
-   git tag -a v0.2.0 -m "Release v0.2.0"
-   git push origin v0.2.0
+   git push origin main
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
    ```
-6. O workflow [`.github/workflows/build.yml`](../.github/workflows/build.yml) compilará automaticamente **Windows (`.exe`, `.msi`)** e **Linux (`.AppImage`, `.deb`, `.rpm`, `.tar.gz`)** e criará a GitHub Release pública — que será detectada automaticamente pelo verificador de atualizações dentro do app.
+6. O workflow [`.github/workflows/build.yml`](../.github/workflows/build.yml) compilará automaticamente **Windows (`.exe`, `.msi`)** e **Linux (`.AppImage`, `.deb`, `.rpm`, `.tar.gz`)** e criará a GitHub Release pública — que será detectada automaticamente pelo verificador de atualizações dentro do app. Acompanhe o `CI` e o `Build & Release Nexus` no GitHub Actions até todos os jobs concluírem com `success`.
 
 > **Importante:** nunca reutilize/mova uma tag já publicada em produção depois que usuários baixarem a release; lance uma versão `PATCH` seguinte (`v0.1.1`).
 
