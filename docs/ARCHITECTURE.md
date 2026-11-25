@@ -45,6 +45,10 @@ nexus/
 │   │   ├── adapters/           # Detectores/inspetores modulares por tipo de projeto
 │   │   │   ├── types.ts
 │   │   │   └── nodeAdapter.ts
+│   │   ├── creator/            # Criador de projetos (APIs de registries, GitHub templates e scaffolder)
+│   │   │   ├── registryApi.ts
+│   │   │   ├── scaffoldPlan.ts
+│   │   │   └── projectScaffolder.ts
 │   │   ├── db/
 │   │   │   └── prisma.ts       # Singleton Prisma, path dev/empacotado e bootstrap SQL
 │   │   ├── engine/
@@ -78,6 +82,7 @@ nexus/
 │   │           ├── ProjectSidebar.tsx
 │   │           ├── ScriptsTab.tsx
 │   │           ├── PipelinesTab.tsx
+│   │           ├── NewProjectDialog.tsx # Wizard de criação de projetos (Stack, Meus Templates e Públicos)
 │   │           ├── ExportPipelineDialog.tsx # Modal de exportação personalizada (.bat, .ps1, .sh)
 │   │           ├── PipelineEditorDialog.tsx # Editor com @dnd-kit
 │   │           ├── HistoryTab.tsx
@@ -85,6 +90,7 @@ nexus/
 │   │           └── SettingsDialog.tsx
 │   └── shared/
 │       ├── cliArgs.ts          # Parser compartilhado de flags e subcomandos
+│       ├── projectCatalog.ts   # Catálogo progressivo de stacks, linguagens, DBs e ORMs
 │       └── types.ts            # DTOs e contrato NexusAPI compartilhados
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -137,7 +143,8 @@ O ponto de entrada do CLI ([src/cli/index.ts](file:///c:/Projetos/Pessoais/nexus
 - **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`, `pipeline:previewExport`, `pipeline:export`
 - **Runner:** `runner:runScript`, `runner:runScriptsBatch`, `runner:runPipeline`, `runner:cancel`, `runner:getHistory`
 - **Sistema, Ferramentas, Config & Updates:** `system:openInVSCode`, `system:openInExplorer`, `system:openInTerminal`, `system:getDetectedTools`, `system:openWithTool`, `system:getCliStatus`, `system:installCli`, `system:uninstallCli`, `system:getAppInfo`, `system:checkForUpdates`, `system:dismissUpdateNotice`, `system:downloadAndInstallUpdate`, `system:openExternalUrl`, `settings:get`, `settings:set`
-- **Eventos Push (Main → Renderer):** `workspace:scan-progress`, `workspace:open-target`, `workspace:launch-options`, `runner:log`, `runner:status`, `runner:step-status`
+- **Criador de Projetos:** `creator:getCatalog`, `creator:fetchLiveMeta`, `creator:listUserTemplates`, `creator:searchPublicTemplates`, `creator:previewPlan`, `creator:createProject`
+- **Eventos Push (Main → Renderer):** `workspace:scan-progress`, `workspace:open-target`, `workspace:launch-options`, `runner:log`, `runner:status`, `runner:step-status`, `creator:progress`
 
 ---
 

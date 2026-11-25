@@ -4,6 +4,15 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-25
+
+### Adicionado
+- **Criador de Projetos (`NewProjectDialog` + `src/main/creator/`):**
+  - **Montagem de Stack Progressiva:** seleção em cascata (Plataforma → Linguagem → Framework → Banco de Dados → ORM → Estilo/UI → Autenticação → Gerenciador de Pacotes → Versão `latest` ou fixada → Docker/Testes) com pré-visualização dos comandos e arquivos gerados (`.env`, `prisma/schema.prisma`, `drizzle.config.ts`, `Dockerfile`, `docker-compose.yml`).
+  - **APIs de Ecossistema em Tempo Real:** consulta automática de última versão e popularidade/downloads no npm Registry + npm Downloads API, PyPI, Crates.io, Packagist e GitHub Releases com cache TTL de 15 minutos.
+  - **Meus Templates do GitHub:** listagem e detecção automática de repositórios template do usuário configurado em Configurações (`githubUsername`, padrão `KaneeSell`, com suporte opcional a `githubToken` para repositórios privados), clonando com histórico limpo e atualizando o `package.json`.
+  - **Templates Públicos Populares:** busca integrada na GitHub Search API ordenada por estrelas a partir da stack escolhida ou de consulta livre.
+
 ## [0.3.1] - 2026-11-24
 
 ### Corrigido
