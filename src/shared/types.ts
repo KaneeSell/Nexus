@@ -229,6 +229,172 @@ export interface CliLaunchOptions {
   envProfile?: string | null;
 }
 
+export type ProjectPlatform = 'web' | 'backend' | 'desktop' | 'mobile' | 'cli';
+
+export type ProjectLanguage =
+  | 'typescript'
+  | 'javascript'
+  | 'python'
+  | 'rust'
+  | 'go'
+  | 'php'
+  | 'java'
+  | 'csharp'
+  | 'dart';
+
+export type DatabaseOptionId = 'none' | 'sqlite' | 'postgresql' | 'mysql' | 'mongodb' | 'supabase';
+
+export type OrmOptionId =
+  | 'none'
+  | 'prisma'
+  | 'drizzle'
+  | 'typeorm'
+  | 'mongoose'
+  | 'sqlalchemy'
+  | 'sqlmodel'
+  | 'django-orm'
+  | 'eloquent'
+  | 'sqlx'
+  | 'gorm'
+  | 'ef-core';
+
+export type StylingOptionId = 'none' | 'tailwind' | 'mui' | 'css-modules';
+
+export type AuthOptionId = 'none' | 'authjs' | 'better-auth' | 'jwt';
+
+export type ProjectVersionMode = 'latest' | 'pinned';
+
+export type RegistryProvider = 'npm' | 'pypi' | 'crates' | 'packagist' | 'github';
+
+export interface FrameworkCatalogItem {
+  id: string;
+  name: string;
+  tagline: string;
+  platforms: ProjectPlatform[];
+  languages: ProjectLanguage[];
+  category: string;
+  popularityScore: number;
+  recommended?: boolean;
+  registrySource: {
+    provider: RegistryProvider;
+    packageName: string;
+  };
+  supportedDatabases: DatabaseOptionId[];
+  supportedOrms: OrmOptionId[];
+  supportedStyling: StylingOptionId[];
+  supportedAuth: AuthOptionId[];
+  supportedPackageManagers: PackageManager[];
+  githubSearchKeywords: string[];
+  defaultPort?: number;
+}
+
+export interface LivePackageMeta {
+  frameworkId: string;
+  packageName: string;
+  provider: RegistryProvider;
+  latestVersion: string | null;
+  monthlyDownloads: number | null;
+  description: string | null;
+  homepage: string | null;
+  source: 'live' | 'fallback';
+  fetchedAt: string;
+}
+
+export interface GitHubTemplateDTO {
+  id: number;
+  name: string;
+  fullName: string;
+  owner: string;
+  description: string | null;
+  htmlUrl: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  language: string | null;
+  stars: number;
+  topics: string[];
+  updatedAt: string;
+  isTemplate: boolean;
+  isDetectedTemplate: boolean;
+  isPrivate: boolean;
+}
+
+export type CreateProjectMode = 'stack' | 'github-template' | 'public-template';
+
+export interface StackSelectionInput {
+  platform: ProjectPlatform;
+  language: ProjectLanguage;
+  frameworkId: string;
+  database: DatabaseOptionId;
+  orm: OrmOptionId;
+  styling: StylingOptionId;
+  auth: AuthOptionId;
+  packageManager: PackageManager;
+  versionMode: ProjectVersionMode;
+  pinnedVersion?: string | null;
+  includeDocker?: boolean;
+  includeTests?: boolean;
+}
+
+export interface CreateProjectInput {
+  mode: CreateProjectMode;
+  projectName: string;
+  parentDir: string;
+  initGit?: boolean;
+  installDeps?: boolean;
+  packageManager?: PackageManager;
+  stack?: StackSelectionInput;
+  templateRepo?: {
+    fullName: string;
+    cloneUrl: string;
+    defaultBranch: string;
+  };
+}
+
+export interface ScaffoldCommandStep {
+  label: string;
+  command: string;
+  cwd: 'parent' | 'project';
+}
+
+export interface ScaffoldGeneratedFile {
+  relativePath: string;
+  content: string;
+}
+
+export interface ScaffoldPlanPreview {
+  targetDir: string;
+  sanitizedName: string;
+  commands: ScaffoldCommandStep[];
+  files: ScaffoldGeneratedFile[];
+  notes: string[];
+}
+
+export type CreateProjectPhase =
+  | 'validating'
+  | 'cloning'
+  | 'scaffolding'
+  | 'writing-files'
+  | 'installing'
+  | 'git-init'
+  | 'done'
+  | 'error';
+
+export interface CreateProjectProgressEvent {
+  phase: CreateProjectPhase;
+  message: string;
+  stepIndex: number;
+  totalSteps: number;
+  stream?: 'stdout' | 'stderr' | 'system';
+  chunk?: string;
+}
+
+export interface CreateProjectResult {
+  ok: boolean;
+  projectPath?: string;
+  error?: string;
+  notes?: string[];
+}
+
 export interface NexusAPI {
   getInitialTarget: () => Promise<string | null>;
   getInitialLaunch: () => Promise<CliLaunchOptions | null>;
@@ -284,6 +450,23 @@ export interface NexusAPI {
     assetName?: string | null
   ) => Promise<{ ok: boolean; filePath?: string; error?: string }>;
   openExternalUrl: (url: string) => Promise<void>;
+
+  getFrameworkCatalog: () => Promise<FrameworkCatalogItem[]>;
+  fetchLiveStackMeta: (
+    frameworkIds: string[],
+    forceRefresh?: boolean
+  ) => Promise<Record<string, LivePackageMeta>>;
+  listUserGitHubTemplates: (
+    username: string,
+    options?: { includeAllRepos?: boolean; token?: string | null; forceRefresh?: boolean }
+  ) => Promise<GitHubTemplateDTO[]>;
+  searchPublicGitHubTemplates: (
+    query: string,
+    options?: { token?: string | null; forceRefresh?: boolean }
+  ) => Promise<GitHubTemplateDTO[]>;
+  previewProjectPlan: (input: CreateProjectInput) => Promise<ScaffoldPlanPreview>;
+  createProject: (input: CreateProjectInput) => Promise<CreateProjectResult>;
+  onCreateProjectProgress: (cb: (event: CreateProjectProgressEvent) => void) => () => void;
 
   onScanProgress: (cb: (event: ScanProgressEvent) => void) => () => void;
   onRunLog: (cb: (event: RunLogEvent) => void) => () => void;

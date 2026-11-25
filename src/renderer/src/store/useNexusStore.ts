@@ -45,6 +45,9 @@ interface NexusState {
   installingUpdate: boolean;
   updateError: string | null;
   settingsOpen: boolean;
+  newProjectOpen: boolean;
+  githubUsername: string;
+  githubToken: string;
   activeTab: number;
 
   currentTarget: string | null;
@@ -75,6 +78,8 @@ interface NexusState {
   dismissUpdate: (hours: number) => Promise<void>;
   installUpdate: () => Promise<void>;
   setSettingsOpen: (open: boolean) => void;
+  setNewProjectOpen: (open: boolean) => void;
+  saveGitHubConfig: (username: string, token: string) => Promise<void>;
   setActiveTab: (tabIndex: number) => void;
 
   setThemeMode: (mode: 'dark' | 'light') => Promise<void>;
@@ -150,6 +155,9 @@ export const useNexusStore = create<NexusState>((set, get) => ({
   installingUpdate: false,
   updateError: null,
   settingsOpen: false,
+  newProjectOpen: false,
+  githubUsername: 'KaneeSell',
+  githubToken: '',
   activeTab: 0,
 
   currentTarget: null,
@@ -175,6 +183,8 @@ export const useNexusStore = create<NexusState>((set, get) => ({
       savedTheme,
       savedStartupMode,
       savedDefaultPath,
+      savedGithubUsername,
+      savedGithubToken,
       initialLaunch,
       history,
       cliStatus,
@@ -184,6 +194,8 @@ export const useNexusStore = create<NexusState>((set, get) => ({
       window.nexus.getSetting('themeMode'),
       window.nexus.getSetting('startupMode'),
       window.nexus.getSetting('defaultWorkspacePath'),
+      window.nexus.getSetting('githubUsername'),
+      window.nexus.getSetting('githubToken'),
       window.nexus.getInitialLaunch(),
       window.nexus.getWorkspaceHistory(),
       window.nexus.getCliStatus(),
@@ -198,6 +210,8 @@ export const useNexusStore = create<NexusState>((set, get) => ({
       themeMode: savedTheme === 'light' ? 'light' : 'dark',
       startupMode,
       defaultWorkspacePath: savedDefaultPath ?? '',
+      githubUsername: savedGithubUsername?.trim() || 'KaneeSell',
+      githubToken: savedGithubToken ?? '',
       workspaceHistory: history,
       cliStatus,
       appInfo,
@@ -262,10 +276,20 @@ export const useNexusStore = create<NexusState>((set, get) => ({
   },
 
   loadSettings: async () => {
-    const [savedTheme, savedStartupMode, savedDefaultPath, cliStatus, appInfo] = await Promise.all([
+    const [
+      savedTheme,
+      savedStartupMode,
+      savedDefaultPath,
+      savedGithubUsername,
+      savedGithubToken,
+      cliStatus,
+      appInfo
+    ] = await Promise.all([
       window.nexus.getSetting('themeMode'),
       window.nexus.getSetting('startupMode'),
       window.nexus.getSetting('defaultWorkspacePath'),
+      window.nexus.getSetting('githubUsername'),
+      window.nexus.getSetting('githubToken'),
       window.nexus.getCliStatus(),
       window.nexus.getAppInfo()
     ]);
@@ -277,6 +301,8 @@ export const useNexusStore = create<NexusState>((set, get) => ({
       themeMode: savedTheme === 'light' ? 'light' : 'dark',
       startupMode,
       defaultWorkspacePath: savedDefaultPath ?? '',
+      githubUsername: savedGithubUsername?.trim() || 'KaneeSell',
+      githubToken: savedGithubToken ?? '',
       cliStatus,
       appInfo
     });
@@ -354,6 +380,21 @@ export const useNexusStore = create<NexusState>((set, get) => ({
   },
 
   setSettingsOpen: (open) => set({ settingsOpen: open }),
+
+  setNewProjectOpen: (open) => set({ newProjectOpen: open }),
+
+  saveGitHubConfig: async (username, token) => {
+    const cleanUser = username.trim() || 'KaneeSell';
+    const cleanToken = token.trim();
+    await Promise.all([
+      window.nexus.setSetting('githubUsername', cleanUser),
+      window.nexus.setSetting('githubToken', cleanToken)
+    ]);
+    set({
+      githubUsername: cleanUser,
+      githubToken: cleanToken
+    });
+  },
 
   setActiveTab: (tabIndex) => set({ activeTab: tabIndex }),
 

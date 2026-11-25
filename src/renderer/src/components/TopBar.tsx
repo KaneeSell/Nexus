@@ -1,3 +1,4 @@
+import AddIcon from '@mui/icons-material/Add';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import HubIcon from '@mui/icons-material/Hub';
@@ -27,6 +28,7 @@ export function TopBar() {
   const toggleTheme = useNexusStore((s) => s.toggleTheme);
   const setConsoleExpanded = useNexusStore((s) => s.setConsoleExpanded);
   const setSettingsOpen = useNexusStore((s) => s.setSettingsOpen);
+  const setNewProjectOpen = useNexusStore((s) => s.setNewProjectOpen);
 
   return (
     <AppBar
@@ -90,6 +92,15 @@ export function TopBar() {
             sx={{ cursor: 'pointer' }}
           />
         )}
+
+        <Button
+          size="small"
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setNewProjectOpen(true)}
+        >
+          Novo Projeto
+        </Button>
 
         <Button
           size="small"

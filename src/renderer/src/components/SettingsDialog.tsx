@@ -1,5 +1,6 @@
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import GitHubIcon from '@mui/icons-material/GitHub';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
@@ -41,6 +42,9 @@ export function SettingsDialog() {
   const updateError = useNexusStore((s) => s.updateError);
   const loadSettings = useNexusStore((s) => s.loadSettings);
   const saveStartupConfig = useNexusStore((s) => s.saveStartupConfig);
+  const githubUsername = useNexusStore((s) => s.githubUsername);
+  const githubToken = useNexusStore((s) => s.githubToken);
+  const saveGitHubConfig = useNexusStore((s) => s.saveGitHubConfig);
   const installCli = useNexusStore((s) => s.installCli);
   const uninstallCli = useNexusStore((s) => s.uninstallCli);
   const checkForUpdates = useNexusStore((s) => s.checkForUpdates);
@@ -48,6 +52,8 @@ export function SettingsDialog() {
 
   const [draftMode, setDraftMode] = useState<StartupMode>(startupMode);
   const [draftPath, setDraftPath] = useState(defaultWorkspacePath);
+  const [draftGithubUser, setDraftGithubUser] = useState(githubUsername);
+  const [draftGithubToken, setDraftGithubToken] = useState(githubToken);
   const [busyCli, setBusyCli] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cliFeedback, setCliFeedback] = useState<string | null>(null);
@@ -62,7 +68,9 @@ export function SettingsDialog() {
   useEffect(() => {
     setDraftMode(startupMode);
     setDraftPath(defaultWorkspacePath);
-  }, [startupMode, defaultWorkspacePath, open]);
+    setDraftGithubUser(githubUsername);
+    setDraftGithubToken(githubToken);
+  }, [startupMode, defaultWorkspacePath, githubUsername, githubToken, open]);
 
   const handlePickDefaultFolder = async (): Promise<void> => {
     const picked = await window.nexus.pickFolder();
@@ -75,7 +83,10 @@ export function SettingsDialog() {
   const handleSave = async (): Promise<void> => {
     setSaving(true);
     try {
-      await saveStartupConfig(draftMode, draftPath);
+      await Promise.all([
+        saveStartupConfig(draftMode, draftPath),
+        saveGitHubConfig(draftGithubUser, draftGithubToken)
+      ]);
       setSettingsOpen(false);
     } finally {
       setSaving(false);
@@ -225,6 +236,41 @@ export function SettingsDialog() {
                 {cliFeedback}
               </Alert>
             )}
+          </Box>
+
+          <Divider />
+
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <GitHubIcon fontSize="small" color="primary" />
+              <Typography variant="subtitle2" fontWeight={700}>
+                GitHub (Templates e API)
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Usado para listar seus templates do GitHub e aumentar o limite de consultas na busca
+              pública de templates.
+            </Typography>
+            <Stack spacing={1.5}>
+              <TextField
+                size="small"
+                fullWidth
+                label="Usuário do GitHub"
+                placeholder="Ex: KaneeSell"
+                value={draftGithubUser}
+                onChange={(e) => setDraftGithubUser(e.target.value)}
+              />
+              <TextField
+                size="small"
+                fullWidth
+                type="password"
+                label="Personal Access Token (opcional)"
+                placeholder="ghp_... (necessário apenas para repositórios privados)"
+                value={draftGithubToken}
+                onChange={(e) => setDraftGithubToken(e.target.value)}
+                helperText="Opcional: desbloqueia repositórios privados e evita rate limit da API."
+              />
+            </Stack>
           </Box>
 
           <Divider />

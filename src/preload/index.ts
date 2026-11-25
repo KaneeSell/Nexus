@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   CliLaunchOptions,
+  CreateProjectProgressEvent,
   NexusAPI,
   RunLogEvent,
   RunStatusEvent,
@@ -57,6 +58,18 @@ const nexusApi: NexusAPI = {
   downloadAndInstallUpdate: (downloadUrl, assetName) =>
     ipcRenderer.invoke('system:downloadAndInstallUpdate', downloadUrl, assetName),
   openExternalUrl: (url) => ipcRenderer.invoke('system:openExternalUrl', url),
+
+  getFrameworkCatalog: () => ipcRenderer.invoke('creator:getCatalog'),
+  fetchLiveStackMeta: (frameworkIds, forceRefresh) =>
+    ipcRenderer.invoke('creator:fetchLiveMeta', frameworkIds, forceRefresh),
+  listUserGitHubTemplates: (username, options) =>
+    ipcRenderer.invoke('creator:listUserTemplates', username, options),
+  searchPublicGitHubTemplates: (query, options) =>
+    ipcRenderer.invoke('creator:searchPublicTemplates', query, options),
+  previewProjectPlan: (input) => ipcRenderer.invoke('creator:previewPlan', input),
+  createProject: (input) => ipcRenderer.invoke('creator:createProject', input),
+  onCreateProjectProgress: (cb) =>
+    subscribe<CreateProjectProgressEvent>('creator:progress', cb),
 
   onScanProgress: (cb) => subscribe<ScanProgressEvent>('workspace:scan-progress', cb),
   onRunLog: (cb) => subscribe<RunLogEvent>('runner:log', cb),

@@ -1,3 +1,4 @@
+import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CodeIcon from '@mui/icons-material/Code';
@@ -28,6 +29,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import type { PipelineDTO, SavePipelineInput } from '../../shared/types';
 import { HistoryTab } from './components/HistoryTab';
+import { NewProjectDialog } from './components/NewProjectDialog';
 import { PipelineEditorDialog } from './components/PipelineEditorDialog';
 import { PipelinesTab } from './components/PipelinesTab';
 import { ProjectSidebar } from './components/ProjectSidebar';
@@ -56,6 +58,7 @@ export function App() {
   const pickAndScanFolder = useNexusStore((s) => s.pickAndScanFolder);
   const savePipeline = useNexusStore((s) => s.savePipeline);
   const setSettingsOpen = useNexusStore((s) => s.setSettingsOpen);
+  const setNewProjectOpen = useNexusStore((s) => s.setNewProjectOpen);
   const setTabIndex = useNexusStore((s) => s.setActiveTab);
   const handleScanProgress = useNexusStore((s) => s.handleScanProgress);
   const handleRunLog = useNexusStore((s) => s.handleRunLog);
@@ -173,9 +176,16 @@ export function App() {
                     endereço do Windows Explorer.
                   </Typography>
 
-                  <Stack direction="row" spacing={1.5} sx={{ mb: workspaceHistory.length > 0 ? 3 : 0 }}>
+                  <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: workspaceHistory.length > 0 ? 3 : 0 }}>
                     <Button
                       variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => setNewProjectOpen(true)}
+                    >
+                      Novo Projeto
+                    </Button>
+                    <Button
+                      variant="outlined"
                       startIcon={<FolderOpenIcon />}
                       onClick={() => void pickAndScanFolder()}
                     >
@@ -424,6 +434,7 @@ export function App() {
         )}
 
         <SettingsDialog />
+        <NewProjectDialog />
       </Box>
     </ThemeProvider>
   );

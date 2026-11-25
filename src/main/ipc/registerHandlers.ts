@@ -3,6 +3,8 @@ import path from 'path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import type {
   CliLaunchOptions,
+  CreateProjectInput,
+  CreateProjectProgressEvent,
   ExecutionRunDTO,
   OnErrorAction,
   PackageManager,
@@ -18,6 +20,14 @@ import type {
   WorkspaceHistoryDTO,
   WorkspaceScanOptions
 } from '../../shared/types';
+import { FRAMEWORK_CATALOG } from '../../shared/projectCatalog';
+import { executeCreateProject } from '../creator/projectScaffolder';
+import {
+  fetchLiveStackMeta,
+  listUserGitHubTemplates,
+  searchPublicGitHubTemplates
+} from '../creator/registryApi';
+import { buildScaffoldPlan } from '../creator/scaffoldPlan';
 import { getPrisma, resolveDatabasePath } from '../db/prisma';
 import {
   generatePipelineScript,
@@ -560,5 +570,79 @@ export function registerIpcHandlers(
 
   ipcMain.handle('system:openExternalUrl', async (_event, url: string) => {
     await shell.openExternal(url);
+  });
+
+  ipcMain.handle('creator:getCatalog', async () => FRAMEWORK_CATALOG);
+
+  ipcMain.handle(
+    'creator:fetchLiveMeta',
+    async (_event, frameworkIds: string[], forceRefresh?: boolean) => {
+      const prisma = getPrisma();
+      const tokenRow = await prisma.appSetting.findUnique({ where: { key: 'githubToken' } });
+      return fetchLiveStackMeta(frameworkIds, {
+        forceRefresh: Boolean(forceRefresh),
+        token: tokenRow?.value ?? null
+      });
+    }
+  );
+
+  ipcMain.handle(
+    'creator:listUserTemplates',
+    async (
+      _event,
+      username: string,
+      options?: { includeAllRepos?: boolean; token?: string | null; forceRefresh?: boolean }
+    ) => {
+      const prisma = getPrisma();
+      const tokenRow = await prisma.appSetting.findUnique({ where: { key: 'githubToken' } });
+      return listUserGitHubTemplates(username, {
+        includeAllRepos: options?.includeAllRepos,
+        token: options?.token ?? tokenRow?.value ?? null,
+        forceRefresh: options?.forceRefresh
+      });
+    }
+  );
+
+  ipcMain.handle(
+    'creator:searchPublicTemplates',
+    async (
+      _event,
+      query: string,
+      options?: { token?: string | null; forceRefresh?: boolean }
+    ) => {
+      const prisma = getPrisma();
+      const tokenRow = await prisma.appSetting.findUnique({ where: { key: 'githubToken' } });
+      return searchPublicGitHubTemplates(query, {
+        token: options?.token ?? tokenRow?.value ?? null,
+        forceRefresh: options?.forceRefresh
+      });
+    }
+  );
+
+  ipcMain.handle('creator:previewPlan', async (_event, input: CreateProjectInput) => {
+    let resolvedMeta = null;
+    if (input.mode === 'stack' && input.stack?.versionMode === 'pinned' && !input.stack.pinnedVersion) {
+      const metaMap = await fetchLiveStackMeta([input.stack.frameworkId]);
+      resolvedMeta = metaMap[input.stack.frameworkId] ?? null;
+    }
+    return buildScaffoldPlan(input, resolvedMeta);
+  });
+
+  ipcMain.handle('creator:createProject', async (event, input: CreateProjectInput) => {
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    let resolvedMeta = null;
+    if (input.mode === 'stack' && input.stack?.versionMode === 'pinned' && !input.stack.pinnedVersion) {
+      const metaMap = await fetchLiveStackMeta([input.stack.frameworkId]);
+      resolvedMeta = metaMap[input.stack.frameworkId] ?? null;
+    }
+    return executeCreateProject(
+      input,
+      (progress: CreateProjectProgressEvent) => {
+        if (senderWin && !senderWin.isDestroyed()) {
+          senderWin.webContents.send('creator:progress', progress);
+        }
+      },
+      { resolvedMeta }
+    );
   });
 }
