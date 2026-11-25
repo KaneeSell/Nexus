@@ -48,8 +48,9 @@ nexus/
 │   │   ├── db/
 │   │   │   └── prisma.ts       # Singleton Prisma, path dev/empacotado e bootstrap SQL
 │   │   ├── engine/
-│   │   │   ├── envLoader.ts    # Carregador de perfis .env / .env.<perfil>
-│   │   │   └── processRunner.ts# Execução sequencial, hooks, dry-run e cancelamento
+│   │   │   ├── envLoader.ts       # Carregador de perfis .env / .env.<perfil>
+│   │   │   ├── pipelineExporter.ts# Gerador de scripts exportáveis (.bat, .ps1, .sh)
+│   │   │   └── processRunner.ts   # Execução sequencial, hooks, dry-run e cancelamento
 │   │   ├── ipc/
 │   │   │   └── registerHandlers.ts # Handlers IPC expostos ao preload
 │   │   ├── scanner/
@@ -132,7 +133,7 @@ O ponto de entrada do CLI ([src/cli/index.ts](file:///c:/Projetos/Pessoais/nexus
 ## 4. Canais IPC (`src/main/ipc/registerHandlers.ts` ↔ `src/preload/index.ts`)
 
 - **Workspace:** `workspace:getInitialLaunch`, `workspace:getInitialTarget`, `workspace:scan`, `workspace:pickFolder`, `workspace:getHistory`, `workspace:togglePin`, `workspace:removeHistory`
-- **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`
+- **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`, `pipeline:export`
 - **Runner:** `runner:runScript`, `runner:runScriptsBatch`, `runner:runPipeline`, `runner:cancel`, `runner:getHistory`
 - **Sistema, Ferramentas, Config & Updates:** `system:openInVSCode`, `system:openInExplorer`, `system:openInTerminal`, `system:getDetectedTools`, `system:openWithTool`, `system:getCliStatus`, `system:installCli`, `system:uninstallCli`, `system:getAppInfo`, `system:checkForUpdates`, `system:dismissUpdateNotice`, `system:downloadAndInstallUpdate`, `system:openExternalUrl`, `settings:get`, `settings:set`
 - **Eventos Push (Main → Renderer):** `workspace:scan-progress`, `workspace:open-target`, `workspace:launch-options`, `runner:log`, `runner:status`, `runner:step-status`

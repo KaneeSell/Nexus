@@ -29,6 +29,7 @@ Por padrão, estes comandos consultam diretamente o banco SQLite de qualquer pas
 | `nexus pipelines [projeto]` | Lista os pipelines e etapas salvos no SQLite |
 | `nexus history [projeto]` | Exibe as últimas execuções registradas no SQLite |
 | `nexus run <nome> [caminho]` | Executa pipeline ou script (DB-first ou escaneando `[caminho]`) |
+| `nexus export <pipeline> [arquivo]` | Exporta um pipeline salvo como script `.bat`, `.ps1` ou `.sh` |
 | `nexus ls [caminho]` | Escaneia a pasta informada e lista os projetos encontrados |
 | `nexus pin [caminho]` | Fixa a pasta na lista de workspaces favoritos no SQLite |
 | `nexus doctor` | Verifica Node, gerenciadores de pacotes, `PATH` e SQLite |
@@ -85,6 +86,8 @@ Por padrão, estes comandos consultam diretamente o banco SQLite de qualquer pas
 | `--pipelines` | — | Lista os pipelines configurados no SQLite para o projeto |
 | `--history [n]` | — | Exibe as últimas `n` execuções (padrão `10` na flag, `15` no subcomando) |
 | `--json` | — | Formata a saída como JSON |
+| `--format` | `-f` | Formato de exportação do pipeline (`bat`, `ps1` ou `sh`) |
+| `--out` | `-o` | Caminho de destino do arquivo exportado em `nexus export` |
 | `--db-path` | — | Imprime o caminho completo do arquivo SQLite utilizado |
 | `--doctor` | — | Diagnóstico completo do ambiente (`node`, `npm`/`pnpm`/`yarn`/`bun`, CLI no `PATH` e SQLite) |
 | `--version` | `-v` | Mostra a versão do Nexus |
@@ -110,6 +113,9 @@ nexus history -p nexus
 
 # Rodar pipeline ou script resolvendo direto do SQLite
 nexus run "CI/CD" -p nexus --sync --dry-run
+
+# Exportar pipeline para .bat, .ps1 ou .sh
+nexus export "CI/CD" -p nexus --format bat --out ./ci.bat
 
 # Abrir a interface gráfica Electron na pasta atual
 nexus .

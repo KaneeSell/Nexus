@@ -8,6 +8,7 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 - **TUI (`nexus` / `tui.mjs`):** removida chamada inválida de `useMemo` dentro do callback de `useInput` em `src/cli/tui/NexusTuiApp.tsx`, que causava `Minified React error #321` ao pressionar comandos no terminal, e adicionada dependência `data.detectedTools` ao `useCallback` de `executeSlashCommand`.
 
 ### Adicionado
+- **Exportação de Pipelines (`.bat`, `.ps1`, `.sh`):** botão **Exportar** na aba de Pipelines e subcomando `nexus export <pipeline> [--format bat|ps1|sh] [--out arquivo]` no CLI, gerando scripts autônomos com resumo das etapas, confirmação via `ENTER` antes de executar (`--yes` para modo direto, `--dry-run`, `--no-pause`), logs completos ao vivo e resumo final.
 - **Testes Automatizados & Cobertura 100%:** adicionada suíte com Vitest + `@vitest/coverage-v8` (`vitest.config.ts`), harness para Ink 6 (`tests/helpers/renderInk.ts`) e testes com exigência de 100% de cobertura por arquivo (`lines`, `statements`, `functions`, `branches`), além de portão `npm run test:coverage` no CI/Build do GitHub Actions.
 - **Fluxo Permanente de Entrega:** criados [`AGENTS.md`](AGENTS.md), a skill [`.agents/skills/nexus-delivery-flow/SKILL.md`](.agents/skills/nexus-delivery-flow/SKILL.md) e [`docs/QUALITY_WORKFLOW.md`](docs/QUALITY_WORKFLOW.md) padronizando o ciclo implementar -> testar (100%) -> `npm.cmd run verify` -> documentar -> commit atômico.
 
