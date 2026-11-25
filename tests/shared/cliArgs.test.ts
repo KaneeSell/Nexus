@@ -15,6 +15,13 @@ describe('parseCliArgs', () => {
       exportTarget: null,
       exportFormat: null,
       outputPath: null,
+      exportRaw: false,
+      exportNoConfirm: false,
+      exportNoPause: false,
+      exportNoColor: false,
+      exportPortable: false,
+      exportSaveLog: false,
+      exportHeader: null,
       newWindow: false,
       gui: false,
       sync: false,
@@ -219,6 +226,36 @@ describe('parseCliArgs', () => {
       exportFormat: null,
       outputPath: null
     });
+    expect(
+      parseCliArgs([
+        'export',
+        'CI/CD',
+        '--raw',
+        '-y',
+        '--no-pause',
+        '--no-color',
+        '--portable',
+        '--log',
+        '--header',
+        'Deploy note'
+      ])
+    ).toMatchObject({
+      subcommand: 'export',
+      exportTarget: 'CI/CD',
+      exportRaw: true,
+      exportNoConfirm: true,
+      exportNoPause: true,
+      exportNoColor: true,
+      exportPortable: true,
+      exportSaveLog: true,
+      exportHeader: 'Deploy note'
+    });
+    expect(
+      parseCliArgs(['export', 'CI/CD', '--yes', '--no-confirm', '--header'])
+    ).toMatchObject({
+      exportNoConfirm: true,
+      exportHeader: null
+    });
   });
 });
 
@@ -273,6 +310,7 @@ describe('isTerminalOnlyArgs & shouldLaunchTui', () => {
     expect(help).toContain('Nexus CLI');
     expect(help).toContain('nexus projects');
     expect(help).toContain('export <pipeline>');
+    expect(help).toContain('--raw');
     expect(help).toContain('--sync');
   });
 });
