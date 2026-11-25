@@ -1,4 +1,8 @@
+import fs from 'fs';
 import esbuild from 'esbuild';
+
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+const pkgVersion = typeof pkg.version === 'string' ? pkg.version : '0.0.0';
 
 const onlyArg = process.argv.find((a) => a.startsWith('--only='));
 const only = onlyArg ? onlyArg.slice('--only='.length) : null;
@@ -10,9 +14,12 @@ async function buildCli() {
     platform: 'node',
     format: 'cjs',
     outfile: 'out/cli/index.js',
+    define: {
+      __NEXUS_VERSION__: JSON.stringify(pkgVersion)
+    },
     external: ['@prisma/client', 'electron']
   });
-  console.log('✓ out/cli/index.js built');
+  console.log(`✓ out/cli/index.js built (v${pkgVersion})`);
 }
 
 const stubDevtoolsPlugin = {
@@ -39,7 +46,8 @@ async function buildTui() {
     outfile: 'out/cli/tui.mjs',
     plugins: [stubDevtoolsPlugin],
     define: {
-      'process.env.NODE_ENV': '"production"'
+      'process.env.NODE_ENV': '"production"',
+      __NEXUS_VERSION__: JSON.stringify(pkgVersion)
     },
     banner: {
       js: "import { createRequire as __nexusCreateRequire } from 'module'; const require = __nexusCreateRequire(import.meta.url);"

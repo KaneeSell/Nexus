@@ -10,6 +10,7 @@ import {
   shouldLaunchTui,
   type ParsedCliArgs
 } from '../shared/cliArgs';
+import { getNexusVersion } from '../shared/version';
 import type {
   CliLaunchOptions,
   OnErrorAction,
@@ -33,25 +34,6 @@ import { syncDatabase } from '../main/scanner/dbSync';
 import { scanWorkspace } from '../main/scanner/workspaceScanner';
 
 const nodeRequire = createRequire(__filename);
-
-function readPackageVersion(): string {
-  const candidates = [
-    path.resolve(__dirname, '../../package.json'),
-    path.resolve(__dirname, '../package.json'),
-    path.resolve(process.cwd(), 'package.json')
-  ];
-  for (const pkgPath of candidates) {
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string };
-        if (parsed.version) return parsed.version;
-      } catch {
-        // ignore
-      }
-    }
-  }
-  return '0.1.0';
-}
 
 function checkCommandVersion(cmd: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
@@ -102,7 +84,7 @@ async function handleDoctor(jsonOutput: boolean): Promise<number> {
   ]);
 
   const report = {
-    version: readPackageVersion(),
+    version: getNexusVersion(),
     platform: process.platform,
     node: process.version,
     packageManagers: {
@@ -783,7 +765,7 @@ async function runTerminalMode(args: ParsedCliArgs): Promise<number> {
   }
 
   if (args.version) {
-    const version = readPackageVersion();
+    const version = getNexusVersion();
     if (args.json) console.log(JSON.stringify({ name: 'nexus', version }));
     else console.log(`nexus v${version}`);
     return 0;

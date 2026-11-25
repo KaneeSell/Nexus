@@ -24,6 +24,7 @@ import type {
   PackageManager,
   StepKind
 } from '../../shared/types';
+import { getNexusVersion } from '../../shared/version';
 import {
   NexusTuiApp,
   type TuiCommandItem,
@@ -42,28 +43,8 @@ function getCurrentDir(): string {
   return path.dirname(fileURLToPath(import.meta.url));
 }
 
-function readPackageVersion(): string {
-  const currentDir = getCurrentDir();
-  const candidates = [
-    path.resolve(currentDir, '../../package.json'),
-    path.resolve(currentDir, '../package.json'),
-    path.resolve(process.cwd(), 'package.json')
-  ];
-  for (const pkgPath of candidates) {
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string };
-        if (parsed.version) return parsed.version;
-      } catch {
-        // ignore
-      }
-    }
-  }
-  return '0.1.0';
-}
-
 async function loadInitialTuiData(): Promise<TuiInitialData> {
-  const version = readPackageVersion();
+  const version = getNexusVersion();
   const dbPath = resolveDatabasePath();
   const detectedTools = await detectInstalledTools().catch(() => []);
 
