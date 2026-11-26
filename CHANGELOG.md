@@ -4,6 +4,15 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-26
+
+### Adicionado
+- **Criador de Projetos v2 (Presets, Preflight Check, Linter, Licença, CI e Arquivos Base):**
+  - **Presets Rápidos (1 clique):** 6 configurações prontas (`Next.js Fullstack`, `Hono API Moderna`, `NestJS Enterprise`, `React + Vite SPA`, `FastAPI Python`, `Node CLI Pronto`).
+  - **Preflight Check de Ferramentas (`src/main/creator/preflightCheck.ts`):** verifica em tempo real se `node`, `npm`/`pnpm`/`yarn`/`bun`, `git`, `python`, `go`, `cargo`, `dotnet`, `composer` ou `flutter` estão disponíveis no PATH antes de criar o projeto.
+  - **Arquivos Essenciais & Qualidade:** geração automática de `.gitignore` por ecossistema, `README.md`, `LICENSE` (`MIT` ou `Apache 2.0`), linter/formatter (`Biome` ou `ESLint + Prettier`), workflow `.github/workflows/ci.yml` opcional e testes reais executáveis (`node --test` para CLI Node.js e `pytest` para Python).
+- **Testes E2E de Execução Real (`tests/e2e/project-execution.e2e.spec.ts`):** cria projetos reais pelo assistente do Electron, executa o projeto criado (`node src/index.js`), roda sua suíte de testes (`node --test`), valida `git init` e executa o script diretamente pelo Runner da interface Nexus.
+
 ## [0.5.0] - 2026-11-25
 
 ### Adicionado

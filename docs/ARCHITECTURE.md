@@ -45,7 +45,8 @@ nexus/
 │   │   ├── adapters/           # Detectores/inspetores modulares por tipo de projeto
 │   │   │   ├── types.ts
 │   │   │   └── nodeAdapter.ts
-│   │   ├── creator/            # Criador de projetos (APIs de registries, GitHub templates e scaffolder)
+│   │   ├── creator/            # Criador de projetos (APIs de registries, preflight, GitHub templates e scaffolder)
+│   │   │   ├── preflightCheck.ts
 │   │   │   ├── registryApi.ts
 │   │   │   ├── scaffoldPlan.ts
 │   │   │   └── projectScaffolder.ts
@@ -143,7 +144,7 @@ O ponto de entrada do CLI ([src/cli/index.ts](file:///c:/Projetos/Pessoais/nexus
 - **Pipelines:** `pipeline:list`, `pipeline:save`, `pipeline:delete`, `pipeline:previewExport`, `pipeline:export`
 - **Runner:** `runner:runScript`, `runner:runScriptsBatch`, `runner:runPipeline`, `runner:cancel`, `runner:getHistory`
 - **Sistema, Ferramentas, Config & Updates:** `system:openInVSCode`, `system:openInExplorer`, `system:openInTerminal`, `system:getDetectedTools`, `system:openWithTool`, `system:getCliStatus`, `system:installCli`, `system:uninstallCli`, `system:getAppInfo`, `system:checkForUpdates`, `system:dismissUpdateNotice`, `system:downloadAndInstallUpdate`, `system:openExternalUrl`, `settings:get`, `settings:set`
-- **Criador de Projetos:** `creator:getCatalog`, `creator:fetchLiveMeta`, `creator:listUserTemplates`, `creator:searchPublicTemplates`, `creator:previewPlan`, `creator:createProject`
+- **Criador de Projetos:** `creator:getCatalog`, `creator:fetchLiveMeta`, `creator:listUserTemplates`, `creator:searchPublicTemplates`, `creator:previewPlan`, `creator:preflight`, `creator:createProject`
 - **Eventos Push (Main → Renderer):** `workspace:scan-progress`, `workspace:open-target`, `workspace:launch-options`, `runner:log`, `runner:status`, `runner:step-status`, `creator:progress`
 
 ---
