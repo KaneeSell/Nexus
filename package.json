@@ -1,6 +1,6 @@
 {
   "name": "nexus",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Orquestrador de projetos local com Electron, React, MUI, Zustand e Prisma",
   "author": "Daniel <kanee.sell@gmail.com>",
   "homepage": "https://github.com/KaneeSell/Nexus#readme",
