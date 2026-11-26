@@ -4,6 +4,11 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-26
+
+### Alterado
+- Atualização para v0.6.1.
+
 ## [0.6.0] - 2026-11-26
 
 ### Adicionado
