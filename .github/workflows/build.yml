@@ -28,8 +28,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Typecheck, test (100% coverage) and build Windows installers (.exe + .msi)
-        run: npm run typecheck && npm run test:coverage && npm run dist:win
+      - name: Typecheck, test (100% coverage), build, E2E and package Windows installers (.exe + .msi)
+        run: npm run verify && npx electron-builder --win --publish never
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -45,8 +45,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install RPM build tools
-        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Install RPM and Xvfb tools
+        run: sudo apt-get update && sudo apt-get install -y rpm xvfb
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -60,8 +60,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Typecheck, test (100% coverage) and build Linux packages (AppImage, deb, rpm, tar.gz)
-        run: npm run typecheck && npm run test:coverage && npm run dist:linux
+      - name: Typecheck, test (100% coverage), build, E2E and package Linux (AppImage, deb, rpm, tar.gz)
+        run: npm run typecheck && npm run test:coverage && npm run build && xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" npm run test:e2e && npx electron-builder --linux --publish never
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

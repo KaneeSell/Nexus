@@ -39,3 +39,11 @@ jobs:
 
       - name: Build Desktop + CLI + TUI
         run: npm run build
+
+      - name: Run Playwright E2E tests (Linux with xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" npm run test:e2e
+
+      - name: Run Playwright E2E tests (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:e2e
