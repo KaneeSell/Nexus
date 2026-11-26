@@ -4,6 +4,12 @@ Todas as mudanças notáveis do **Nexus** são documentadas neste arquivo seguin
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-25
+
+### Adicionado
+- **Testes E2E Automatizados (`Playwright` + Electron + CLI):** adicionada suíte ponta a ponta em `tests/e2e/desktop-app.e2e.spec.ts` e `tests/e2e/cli.e2e.spec.ts`, integrada ao `npm run verify` e aos workflows do GitHub Actions (`CI` no Ubuntu via `xvfb-run` + Windows e `Build & Release Nexus`), garantindo validação real da interface Electron, assistente de criação de projetos, pipelines, exportação e CLI compilado.
+- **Fluxo Permanente de Entrega (`AGENTS.md`, `SKILL.md`, `QUALITY_WORKFLOW.md`, `GIT_WORKFLOW.md`):** exigência explícita de testes **Vitest (100%) + E2E (Playwright)** em todo novo desenvolvimento, execução completa de todos os testes com correção até 100% verde e acompanhamento ponta a ponta no GitHub Actions.
+
 ## [0.4.0] - 2026-11-25
 
 ### Adicionado

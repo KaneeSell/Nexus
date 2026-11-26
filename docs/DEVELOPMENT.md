@@ -50,7 +50,8 @@ npm.cmd run build
 | `npm.cmd run test` | Executa a suíte de testes automatizados com Vitest |
 | `npm.cmd run test:watch` | Executa os testes em modo observação durante o desenvolvimento |
 | `npm.cmd run test:coverage` | Executa todos os testes exigindo 100% de cobertura por arquivo (`vitest.config.ts`) |
-| `npm.cmd run verify` | Portão completo pré-commit: `typecheck` + `test:coverage` + `build` |
+| `npm.cmd run test:e2e` | Executa os testes E2E com Playwright no app Electron e no CLI compilado (`tests/e2e/`) |
+| `npm.cmd run verify` | Portão completo pré-commit: `typecheck` + `test:coverage` + `build` + `test:e2e` |
 | `npm.cmd run version:bump` | Calcula e aplica bump SemVer (`package.json`, lockfile e `CHANGELOG.md`) pelos commits |
 | `npm.cmd run version:patch` | Incrementa versão `PATCH` (`0.1.0` → `0.1.1`) |
 | `npm.cmd run version:minor` | Incrementa versão `MINOR` (`0.1.0` → `0.2.0`) |

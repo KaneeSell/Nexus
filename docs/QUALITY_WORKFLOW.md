@@ -9,10 +9,10 @@ Este documento define a rotina oficial de engenharia do **Nexus**, aplicada tant
 ```mermaid
 flowchart LR
     A["1. Ler código & docs/DEVELOPMENT.md"] --> B["2. Implementar correção ou feature"]
-    B --> C["3. Criar/atualizar testes (100% cobertura)"]
+    B --> C["3. Criar/atualizar Vitest (100%) + E2E (Playwright)"]
     C --> D["4. Atualizar docs & CHANGELOG.md"]
     D --> E["5. Bump SemVer (version:bump)"]
-    E --> F["6. Rodar npm.cmd run verify"]
+    E --> F["6. Rodar npm.cmd run verify (Vitest + Build + E2E)"]
     F -->|Falhou| B
     F -->|Passou| G["7. Commits atômicos (Conventional Commits)"]
     G --> H["8. Push main + Tag vX.Y.Z"]
@@ -52,10 +52,13 @@ Antes de qualquer commit, execute:
 npm.cmd run verify
 ```
 
-Esse comando executa em sequência:
+Esse comando executa **todos** os testes e validações em sequência:
 1. `npm run typecheck` — checagem TypeScript em `main`, `preload`, `renderer`, `cli`, `shared` e `tests`.
 2. `npm run test:coverage` — toda a suíte Vitest com validação obrigatória de 100% por arquivo.
 3. `npm run build` — build completo do Electron + bundle `out/cli/index.js` + bundle `out/cli/tui.mjs`.
+4. `npm run test:e2e` — suíte E2E em Playwright (`tests/e2e/*.e2e.spec.ts`) validando o app Electron real e o CLI compilado.
+
+Se qualquer teste falhar, corrija o erro e reexecute `npm.cmd run verify` até passar 100%.
 
 O mesmo portão é executado automaticamente no GitHub Actions e deve ser acompanhado de ponta a ponta após todo push/tag até concluir com sucesso:
 - [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (push e PR em `main` no Ubuntu e Windows).

@@ -54,11 +54,11 @@ Use o formato:
 
 ## 3. Checklist Obrigatório Antes de Todo Commit
 
-1. **Validar tipagem, testes (100% de cobertura) e build:**
+1. **Validar tipagem, Vitest (100% de cobertura), build e E2E (Playwright):**
    ```powershell
    npm.cmd run verify
    ```
-   *(Executa `typecheck`, `test:coverage` com exigência de 100% em `vitest.config.ts` e `build` completo.)*
+   *(Executa `typecheck`, `test:coverage` com exigência de 100% em `vitest.config.ts`, `build` completo e `test:e2e`. Se algum teste falhar, corrija até passar 100%.)*
 2. **Conferir `git status` e `git diff`:**
    Garanta que **nunca** entrem no commit:
    - `.env` (contém `DATABASE_URL` local)

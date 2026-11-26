@@ -19,14 +19,15 @@ Follow these steps in order for every change in the Nexus codebase.
 
 - Keep edits minimal, typed, and aligned with `src/shared/types.ts` contracts.
 
-## 3. Write / Update Tests with 100% Coverage
+## 3. Write / Update Vitest (100% Coverage) + E2E (Playwright) Tests
 
-- Place tests in `tests/` mirroring `src/` (e.g. `tests/cli/tui/NexusTuiApp.test.tsx`).
+- Place unit/integration Vitest tests in `tests/` mirroring `src/` (e.g. `tests/cli/tui/NexusTuiApp.test.tsx`).
 - For Ink TUI components, use the harness in [tests/helpers/renderInk.ts](../../../tests/helpers/renderInk.ts).
   - Never fake `setImmediate`/`nextTick` when using `vi.useFakeTimers()`, because Ink 6 flushes lone Escape keys on `setImmediate`. Use `{ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] }`.
   - Always call `unmount()` in `afterEach` so intervals do not leak.
 - Register every newly added or modified testable module in `coverage.include` inside [vitest.config.ts](../../../vitest.config.ts).
 - Verify 100% `lines`, `statements`, `functions`, and `branches` per file. Never relax thresholds.
+- Add or update **Playwright E2E tests** in `tests/e2e/*.e2e.spec.ts` (Electron desktop app + compiled CLI) whenever adding or changing UI, IPC, CLI, or database flows.
 
 ## 4. Update Documentation & Changelog
 
@@ -51,12 +52,13 @@ On Windows PowerShell (use `.cmd` wrappers), run **after** the version bump so C
 npm.cmd run verify
 ```
 
-This runs:
+This runs **all** checks and tests:
 1. `npm run typecheck`
-2. `npm run test:coverage`
+2. `npm run test:coverage` (Vitest 100% per file)
 3. `npm run build`
+4. `npm run test:e2e` (Playwright Electron + CLI E2E)
 
-If any step fails, fix all errors and re-run `npm.cmd run verify` until it exits `0`.
+If any step or test fails, fix all errors and re-run `npm.cmd run verify` until it exits `0` with 100% passing.
 
 ## 7. Inspect & Commit Atomically
 
