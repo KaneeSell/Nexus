@@ -96,7 +96,12 @@ function createMainWindow(launchOptions: CliLaunchOptions | null = null): Browse
   return win;
 }
 
-const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (process.env.NEXUS_USER_DATA) {
+  app.setPath('userData', process.env.NEXUS_USER_DATA);
+}
+
+const gotSingleInstanceLock =
+  process.env.NEXUS_E2E === '1' ? true : app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
   app.quit();
