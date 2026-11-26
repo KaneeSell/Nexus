@@ -9,7 +9,9 @@ import {
   getAvailableOrms,
   getAvailableStyling,
   getFrameworkById,
-  sanitizeProjectName
+  getPresetById,
+  sanitizeProjectName,
+  STACK_PRESETS
 } from '../../src/shared/projectCatalog';
 
 describe('projectCatalog', () => {
@@ -99,5 +101,8 @@ describe('projectCatalog', () => {
       'nextjs prisma typescript'
     );
     expect(FRAMEWORK_CATALOG.length).toBeGreaterThan(15);
+    expect(STACK_PRESETS.length).toBeGreaterThanOrEqual(6);
+    expect(getPresetById('nextjs-fullstack')?.name).toBe('Next.js Fullstack');
+    expect(getPresetById('unknown-preset')).toBeUndefined();
   });
 });

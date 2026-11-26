@@ -17,6 +17,7 @@ export default defineConfig({
         'src/shared/projectCatalog.ts',
         'src/shared/semverBump.ts',
         'src/shared/version.ts',
+        'src/main/creator/preflightCheck.ts',
         'src/main/creator/projectScaffolder.ts',
         'src/main/creator/registryApi.ts',
         'src/main/creator/scaffoldPlan.ts',

@@ -340,13 +340,108 @@ describe('scaffoldPlan', () => {
       )
     );
     expect(noInstallPythonGo.commands).toHaveLength(0);
+    expect(noInstallPythonGo.files.some((f) => f.relativePath === '.gitignore')).toBe(true);
 
     const noInstallGo = buildScaffoldPlan(
       makeStackInput(
-        { frameworkId: 'go-gin', language: 'go', database: 'none', orm: 'none', styling: 'none', auth: 'none' },
+        { frameworkId: 'go-gin', language: 'go', database: 'none', orm: 'none', styling: 'none', auth: 'none', includeCi: true },
         { installDeps: false, initGit: false }
       )
     );
     expect(noInstallGo.commands).toHaveLength(1);
+    expect(noInstallGo.files.some((f) => f.relativePath === '.github/workflows/ci.yml')).toBe(true);
+
+    const cliJsFull = buildScaffoldPlan(
+      makeStackInput(
+        {
+          platform: 'cli',
+          frameworkId: 'node-cli',
+          language: 'javascript',
+          database: 'none',
+          orm: 'none',
+          styling: 'none',
+          auth: 'none',
+          linter: 'biome',
+          license: 'mit',
+          description: 'My CLI tool',
+          author: 'KaneeSell',
+          includeTests: true,
+          includeCi: true
+        },
+        { installDeps: false, initGit: false }
+      )
+    );
+    expect(cliJsFull.files.some((f) => f.relativePath === 'tests/index.test.mjs')).toBe(true);
+    expect(cliJsFull.files.some((f) => f.relativePath === 'biome.json')).toBe(true);
+    expect(cliJsFull.files.some((f) => f.relativePath === 'LICENSE')).toBe(true);
+    expect(cliJsFull.files.some((f) => f.relativePath === 'README.md')).toBe(true);
+    expect(cliJsFull.files.some((f) => f.relativePath === '.github/workflows/ci.yml')).toBe(true);
+    expect(cliJsFull.files.find((f) => f.relativePath === 'package.json')?.content).toContain(
+      '"author": "KaneeSell"'
+    );
+
+    const rustCiApache = buildScaffoldPlan(
+      makeStackInput(
+        {
+          platform: 'backend',
+          frameworkId: 'rust-axum',
+          language: 'rust',
+          database: 'none',
+          orm: 'none',
+          styling: 'none',
+          auth: 'none',
+          license: 'apache-2.0',
+          includeCi: true
+        },
+        { installDeps: false, initGit: false }
+      )
+    );
+    expect(rustCiApache.files.find((f) => f.relativePath === 'LICENSE')?.content).toContain(
+      'Apache License'
+    );
+    expect(
+      rustCiApache.files.find((f) => f.relativePath === '.github/workflows/ci.yml')?.content
+    ).toContain('cargo test');
+
+    const pythonCiEslint = buildScaffoldPlan(
+      makeStackInput(
+        {
+          platform: 'backend',
+          frameworkId: 'fastapi',
+          language: 'python',
+          database: 'none',
+          orm: 'none',
+          styling: 'none',
+          auth: 'none',
+          includeTests: true,
+          includeCi: true
+        },
+        { installDeps: false, initGit: false }
+      )
+    );
+    expect(
+      pythonCiEslint.files.find((f) => f.relativePath === '.github/workflows/ci.yml')?.content
+    ).toContain('pytest');
+
+    const eslintPrettierPlan = buildScaffoldPlan(
+      makeStackInput(
+        {
+          frameworkId: 'hono',
+          language: 'typescript',
+          database: 'none',
+          orm: 'none',
+          styling: 'none',
+          auth: 'none',
+          linter: 'eslint-prettier',
+          license: 'mit',
+          author: ''
+        },
+        { installDeps: true, initGit: false }
+      )
+    );
+    expect(eslintPrettierPlan.files.some((f) => f.relativePath === '.prettierrc')).toBe(true);
+    expect(eslintPrettierPlan.files.find((f) => f.relativePath === 'LICENSE')?.content).toContain(
+      'Nexus User'
+    );
   });
 });
