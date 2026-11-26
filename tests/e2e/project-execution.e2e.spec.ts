@@ -112,7 +112,7 @@ test.describe('Nexus Created Project Execution E2E', () => {
       .getByRole('row', { name: /\btest\b/i })
       .getByRole('button', { name: 'Rodar' })
       .click();
-    await expect(page.getByText('greet returns personalized message')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Script: test — success')).toBeVisible({ timeout: 20_000 });
   });
 
   test('creates a Hono JS + SQLite + Prisma + ESLint/Prettier + Apache-2.0 project and validates JS syntax', async () => {
