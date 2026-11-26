@@ -262,6 +262,10 @@ export type StylingOptionId = 'none' | 'tailwind' | 'mui' | 'css-modules';
 
 export type AuthOptionId = 'none' | 'authjs' | 'better-auth' | 'jwt';
 
+export type LinterOptionId = 'none' | 'eslint-prettier' | 'biome';
+
+export type LicenseOptionId = 'none' | 'mit' | 'apache-2.0';
+
 export type ProjectVersionMode = 'latest' | 'pinned';
 
 export type RegistryProvider = 'npm' | 'pypi' | 'crates' | 'packagist' | 'github';
@@ -333,6 +337,26 @@ export interface StackSelectionInput {
   pinnedVersion?: string | null;
   includeDocker?: boolean;
   includeTests?: boolean;
+  linter?: LinterOptionId;
+  license?: LicenseOptionId;
+  includeCi?: boolean;
+  description?: string;
+  author?: string;
+}
+
+export interface StackPresetItem {
+  id: string;
+  name: string;
+  description: string;
+  badge: string;
+  stack: StackSelectionInput;
+}
+
+export interface PreflightToolStatus {
+  tool: string;
+  available: boolean;
+  version: string | null;
+  required: boolean;
 }
 
 export interface CreateProjectInput {
@@ -465,6 +489,7 @@ export interface NexusAPI {
     options?: { token?: string | null; forceRefresh?: boolean }
   ) => Promise<GitHubTemplateDTO[]>;
   previewProjectPlan: (input: CreateProjectInput) => Promise<ScaffoldPlanPreview>;
+  checkCreatorPreflight: (input: CreateProjectInput) => Promise<PreflightToolStatus[]>;
   createProject: (input: CreateProjectInput) => Promise<CreateProjectResult>;
   onCreateProjectProgress: (cb: (event: CreateProjectProgressEvent) => void) => () => void;
 

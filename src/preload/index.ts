@@ -67,6 +67,7 @@ const nexusApi: NexusAPI = {
   searchPublicGitHubTemplates: (query, options) =>
     ipcRenderer.invoke('creator:searchPublicTemplates', query, options),
   previewProjectPlan: (input) => ipcRenderer.invoke('creator:previewPlan', input),
+  checkCreatorPreflight: (input) => ipcRenderer.invoke('creator:preflight', input),
   createProject: (input) => ipcRenderer.invoke('creator:createProject', input),
   onCreateProjectProgress: (cb) =>
     subscribe<CreateProjectProgressEvent>('creator:progress', cb),

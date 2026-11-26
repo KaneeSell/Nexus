@@ -3,6 +3,7 @@ import { getFrameworkById, sanitizeProjectName } from '../../shared/projectCatal
 import type {
   CreateProjectInput,
   DatabaseOptionId,
+  LicenseOptionId,
   LivePackageMeta,
   PackageManager,
   ScaffoldCommandStep,
@@ -99,6 +100,158 @@ ${idField}
 `;
 }
 
+function buildGitignore(stack: StackSelectionInput): string {
+  if (stack.language === 'python') {
+    return `.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.db
+`;
+  }
+  if (stack.language === 'rust') {
+    return `target/
+.env
+*.db
+`;
+  }
+  if (stack.language === 'go') {
+    return `bin/
+*.exe
+.env
+*.db
+`;
+  }
+  return `node_modules/
+dist/
+out/
+.next/
+coverage/
+.env
+*.db
+`;
+}
+
+function buildLicense(license: LicenseOptionId, author: string): string {
+  const year = new Date().getFullYear();
+  const owner = author.trim() || 'Nexus User';
+  if (license === 'apache-2.0') {
+    return `Apache License
+Version 2.0, January 2004
+http://www.apache.org/licenses/
+
+Copyright ${year} ${owner}
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+`;
+  }
+  return `MIT License
+
+Copyright (c) ${year} ${owner}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+`;
+}
+
+function buildReadme(
+  sanitizedName: string,
+  frameworkName: string,
+  stack: StackSelectionInput
+): string {
+  const desc = stack.description?.trim() || `Projeto ${frameworkName} criado via Nexus.`;
+  return `# ${sanitizedName}
+
+${desc}
+
+## Stack
+
+- **Plataforma:** ${stack.platform}
+- **Linguagem:** ${stack.language}
+- **Framework:** ${frameworkName}
+- **Banco de Dados:** ${stack.database}
+- **ORM:** ${stack.orm}
+- **Estilização:** ${stack.styling}
+- **Autenticação:** ${stack.auth}
+`;
+}
+
+function buildCiWorkflow(stack: StackSelectionInput): string {
+  if (stack.language === 'python') {
+    return `name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pytest
+`;
+  }
+  if (stack.language === 'go') {
+    return `name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - run: go test ./...
+`;
+  }
+  if (stack.language === 'rust') {
+    return `name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test
+`;
+  }
+  return `name: CI
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm test --if-present
+`;
+}
+
 function buildDockerFiles(
   sanitizedName: string,
   stack: StackSelectionInput
@@ -185,7 +338,7 @@ function buildNodeStarterFiles(
     deps.push('fastify');
   } else if (stack.frameworkId === 'hono') {
     deps.push('hono', '@hono/node-server');
-  } else {
+  } else if (isTs) {
     deps.push('commander');
   }
 
@@ -220,27 +373,57 @@ function buildNodeStarterFiles(
   }
 
   if (stack.includeTests) {
-    scripts.test = 'vitest run';
+    if (!isTs && stack.frameworkId === 'node-cli') {
+      scripts.test = 'node --test';
+      files.push({
+        relativePath: 'tests/index.test.mjs',
+        content: `import assert from 'node:assert/strict';
+import test from 'node:test';
+import { greet } from '../src/index.js';
+
+test('greet returns personalized message', () => {
+  assert.equal(greet('Nexus'), 'Hello, Nexus!');
+});
+`
+      });
+    } else {
+      scripts.test = 'vitest run';
+    }
   }
+
+  const pkgJson: Record<string, unknown> = {
+    name: sanitizedName,
+    version: '0.1.0',
+    private: true,
+    type: 'module'
+  };
+  if (stack.description?.trim()) pkgJson.description = stack.description.trim();
+  if (stack.author?.trim()) pkgJson.author = stack.author.trim();
+  pkgJson.scripts = scripts;
 
   files.push({
     relativePath: 'package.json',
-    content: JSON.stringify(
-      {
-        name: sanitizedName,
-        version: '0.1.0',
-        private: true,
-        type: 'module',
-        scripts
-      },
-      null,
-      2
-    )
+    content: JSON.stringify(pkgJson, null, 2)
   });
 
   const entryExt = isTs ? 'ts' : 'js';
   let entryCode = `console.log('Hello from ${sanitizedName}');\n`;
-  if (stack.frameworkId === 'express') {
+  if (stack.frameworkId === 'node-cli' && !isTs) {
+    entryCode = `import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
+
+export function greet(name = '${sanitizedName}') {
+  return \`Hello, \${name}!\`;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const { values } = parseArgs({
+    options: { name: { type: 'string', short: 'n', default: '${sanitizedName}' } }
+  });
+  console.log(greet(values.name));
+}
+`;
+  } else if (stack.frameworkId === 'express') {
     entryCode = `import express from 'express';
 
 const app = express();
@@ -450,7 +633,13 @@ export function buildScaffoldPlan(
         stack.frameworkId === 'fastapi' ? ['fastapi', 'uvicorn[standard]'] : ['typer'];
       if (stack.orm === 'sqlalchemy') reqs.push('sqlalchemy');
       if (stack.orm === 'sqlmodel') reqs.push('sqlmodel');
-      if (stack.includeTests) reqs.push('pytest');
+      if (stack.includeTests) {
+        reqs.push('pytest');
+        files.push({
+          relativePath: 'tests/test_main.py',
+          content: `def test_smoke():\n    assert True\n`
+        });
+      }
 
       files.push({
         relativePath: 'requirements.txt',
@@ -561,10 +750,6 @@ func main() {
       break;
     }
     default: {
-      files.push({
-        relativePath: 'README.md',
-        content: `# ${sanitizedName}\n\nProjeto criado com ${fw.name} via Nexus.\n`
-      });
       notes.push(`Para ${fw.name}, finalize a inicialização via Spring Initializr se desejar.`);
       break;
     }
@@ -635,7 +820,30 @@ export default defineConfig({
       if (isTs) nodeDevDeps.push('@types/jsonwebtoken');
     }
 
-    if (stack.includeTests) {
+    if (stack.linter === 'biome') {
+      nodeDevDeps.push('@biomejs/biome');
+      files.push({
+        relativePath: 'biome.json',
+        content: JSON.stringify(
+          {
+            $schema: 'https://biomejs.dev/schemas/1.9.4/schema.json',
+            organizeImports: { enabled: true },
+            linter: { enabled: true, rules: { recommended: true } },
+            formatter: { enabled: true, indentStyle: 'space', indentWidth: 2 }
+          },
+          null,
+          2
+        )
+      });
+    } else if (stack.linter === 'eslint-prettier') {
+      nodeDevDeps.push('eslint', 'prettier');
+      files.push({
+        relativePath: '.prettierrc',
+        content: JSON.stringify({ singleQuote: true, semi: true, trailingComma: 'none' }, null, 2)
+      });
+    }
+
+    if (stack.includeTests && (isTs || stack.frameworkId !== 'node-cli')) {
       nodeDevDeps.push('vitest');
     }
 
@@ -666,6 +874,23 @@ export default defineConfig({
   if (envContent) {
     files.push({ relativePath: '.env.example', content: envContent });
     files.push({ relativePath: '.env', content: envContent });
+  }
+
+  files.push({ relativePath: '.gitignore', content: buildGitignore(stack) });
+  files.push({ relativePath: 'README.md', content: buildReadme(sanitizedName, fw.name, stack) });
+
+  if (stack.license && stack.license !== 'none') {
+    files.push({
+      relativePath: 'LICENSE',
+      content: buildLicense(stack.license, stack.author ?? '')
+    });
+  }
+
+  if (stack.includeCi) {
+    files.push({
+      relativePath: '.github/workflows/ci.yml',
+      content: buildCiWorkflow(stack)
+    });
   }
 
   if (stack.includeDocker) {

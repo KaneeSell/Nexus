@@ -50,8 +50,11 @@ import {
   getAvailableOrms,
   getAvailableStyling,
   getFrameworkById,
+  LICENSE_OPTIONS,
+  LINTER_OPTIONS,
   PLATFORM_OPTIONS,
-  sanitizeProjectName
+  sanitizeProjectName,
+  STACK_PRESETS
 } from '../../../shared/projectCatalog';
 import type {
   AuthOptionId,
@@ -61,13 +64,17 @@ import type {
   CreateProjectResult,
   DatabaseOptionId,
   GitHubTemplateDTO,
+  LicenseOptionId,
+  LinterOptionId,
   LivePackageMeta,
   OrmOptionId,
   PackageManager,
+  PreflightToolStatus,
   ProjectLanguage,
   ProjectPlatform,
   ProjectVersionMode,
   ScaffoldPlanPreview,
+  StackPresetItem,
   StylingOptionId
 } from '../../../shared/types';
 import { useNexusStore } from '../store/useNexusStore';
@@ -100,8 +107,13 @@ export function NewProjectDialog() {
   const [packageManager, setPackageManager] = useState<PackageManager>('npm');
   const [versionMode, setVersionMode] = useState<ProjectVersionMode>('latest');
   const [pinnedVersion, setPinnedVersion] = useState<string>('');
+  const [linter, setLinter] = useState<LinterOptionId>('none');
+  const [license, setLicense] = useState<LicenseOptionId>('mit');
+  const [projectDescription, setProjectDescription] = useState<string>('');
   const [includeDocker, setIncludeDocker] = useState<boolean>(false);
   const [includeTests, setIncludeTests] = useState<boolean>(false);
+  const [includeCi, setIncludeCi] = useState<boolean>(false);
+  const [preflight, setPreflight] = useState<PreflightToolStatus[]>([]);
 
   // Live registry metadata
   const [liveMeta, setLiveMeta] = useState<Record<string, LivePackageMeta>>({});
@@ -328,8 +340,13 @@ export function NewProjectDialog() {
               packageManager,
               versionMode,
               pinnedVersion: pinnedVersion.trim() || liveMeta[frameworkId]?.latestVersion || null,
+              linter,
+              license,
+              description: projectDescription.trim() || undefined,
+              author: githubUsername || undefined,
               includeDocker,
-              includeTests
+              includeTests,
+              includeCi
             }
           : undefined,
       templateRepo: template
@@ -357,11 +374,32 @@ export function NewProjectDialog() {
     versionMode,
     pinnedVersion,
     liveMeta,
+    linter,
+    license,
+    projectDescription,
+    githubUsername,
     includeDocker,
     includeTests,
+    includeCi,
     selectedUserTemplate,
     selectedPublicTemplate
   ]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void window.nexus
+      .checkCreatorPreflight(currentInput)
+      .then((statuses) => {
+        if (!cancelled) setPreflight(statuses);
+      })
+      .catch(() => {
+        if (!cancelled) setPreflight([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currentInput]);
 
   useEffect(() => {
     if (!open || !previewOpen || !parentDir.trim()) return;
@@ -384,6 +422,24 @@ export function NewProjectDialog() {
     if (picked) {
       setParentDir(picked);
     }
+  };
+
+  const handleApplyPreset = (preset: StackPresetItem): void => {
+    const s = preset.stack;
+    setPlatform(s.platform);
+    setLanguage(s.language);
+    setFrameworkId(s.frameworkId);
+    setDatabase(s.database);
+    setOrm(s.orm);
+    setStyling(s.styling);
+    setAuth(s.auth);
+    setPackageManager(s.packageManager);
+    setVersionMode(s.versionMode);
+    setLinter(s.linter ?? 'none');
+    setLicense(s.license ?? 'mit');
+    setIncludeDocker(Boolean(s.includeDocker));
+    setIncludeTests(Boolean(s.includeTests));
+    setIncludeCi(Boolean(s.includeCi));
   };
 
   const handleSearchTemplatesForStack = (): void => {
@@ -524,6 +580,30 @@ export function NewProjectDialog() {
         <Stack spacing={2.5}>
           {modeTab === 0 && (
             <>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  PRESETS RÁPIDOS (1 CLIQUE)
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {STACK_PRESETS.map((preset) => (
+                    <Tooltip key={preset.id} title={preset.description}>
+                      <Chip
+                        size="small"
+                        label={`${preset.name} (${preset.badge})`}
+                        variant={
+                          frameworkId === preset.stack.frameworkId &&
+                          language === preset.stack.language
+                            ? 'filled'
+                            : 'outlined'
+                        }
+                        color="secondary"
+                        onClick={() => handleApplyPreset(preset)}
+                      />
+                    </Tooltip>
+                  ))}
+                </Stack>
+              </Box>
+
               <Box>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                   1. PLATAFORMA
@@ -743,6 +823,54 @@ export function NewProjectDialog() {
                   />
                 )}
 
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1.4fr' },
+                    gap: 1.5,
+                    mt: 1.5
+                  }}
+                >
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Linter / Formatter</InputLabel>
+                    <Select
+                      label="Linter / Formatter"
+                      value={linter}
+                      onChange={(e) => setLinter(e.target.value as LinterOptionId)}
+                    >
+                      {LINTER_OPTIONS.map((l) => (
+                        <MenuItem key={l.id} value={l.id}>
+                          {l.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Licença</InputLabel>
+                    <Select
+                      label="Licença"
+                      value={license}
+                      onChange={(e) => setLicense(e.target.value as LicenseOptionId)}
+                    >
+                      {LICENSE_OPTIONS.map((lic) => (
+                        <MenuItem key={lic.id} value={lic.id}>
+                          {lic.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <TextField
+                    size="small"
+                    fullWidth
+                    label="Descrição (opcional)"
+                    placeholder="Ex: API REST com Prisma e SQLite"
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                  />
+                </Box>
+
                 <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ mt: 1 }}>
                   <FormControlLabel
                     control={
@@ -763,6 +891,16 @@ export function NewProjectDialog() {
                       />
                     }
                     label="Incluir setup de testes"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={includeCi}
+                        onChange={(e) => setIncludeCi(e.target.checked)}
+                      />
+                    }
+                    label="Incluir GitHub Actions CI"
                   />
                   <Box sx={{ flexGrow: 1 }} />
                   <Button
@@ -866,9 +1004,32 @@ export function NewProjectDialog() {
           <Divider />
 
           <Box>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              DESTINO E OPÇÕES DE CRIAÇÃO
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+              <Typography variant="caption" fontWeight={700} color="text.secondary">
+                DESTINO E OPÇÕES DE CRIAÇÃO
+              </Typography>
+              {preflight.length > 0 && (
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                  {preflight.map((item) => (
+                    <Tooltip
+                      key={item.tool}
+                      title={
+                        item.available
+                          ? `${item.tool}: ${item.version}`
+                          : `${item.tool} não encontrado no PATH`
+                      }
+                    >
+                      <Chip
+                        size="small"
+                        color={item.available ? 'success' : 'warning'}
+                        variant="outlined"
+                        label={`${item.tool} ${item.available ? '✓' : '!'}`}
+                      />
+                    </Tooltip>
+                  ))}
+                </Stack>
+              )}
+            </Box>
             <Box
               sx={{
                 display: 'grid',
@@ -1010,15 +1171,24 @@ export function NewProjectDialog() {
                   sx={{ mt: 1 }}
                   action={
                     result.projectPath ? (
-                      <Button
-                        size="small"
-                        color="inherit"
-                        onClick={() => {
-                          void scanTarget(result.projectPath!).then(() => setOpen(false));
-                        }}
-                      >
-                        Abrir no Nexus
-                      </Button>
+                      <Stack direction="row" spacing={0.5}>
+                        <Button
+                          size="small"
+                          color="inherit"
+                          onClick={() => void window.nexus.openInTerminal(result.projectPath!)}
+                        >
+                          Terminal
+                        </Button>
+                        <Button
+                          size="small"
+                          color="inherit"
+                          onClick={() => {
+                            void scanTarget(result.projectPath!).then(() => setOpen(false));
+                          }}
+                        >
+                          Abrir no Nexus
+                        </Button>
+                      </Stack>
                     ) : undefined
                   }
                 >

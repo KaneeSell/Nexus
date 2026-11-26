@@ -2,9 +2,12 @@ import type {
   AuthOptionId,
   DatabaseOptionId,
   FrameworkCatalogItem,
+  LicenseOptionId,
+  LinterOptionId,
   OrmOptionId,
   ProjectLanguage,
   ProjectPlatform,
+  StackPresetItem,
   StackSelectionInput,
   StylingOptionId
 } from './types';
@@ -72,6 +75,151 @@ export const AUTH_OPTIONS: OptionMeta<AuthOptionId>[] = [
   { id: 'better-auth', label: 'Better Auth', description: 'Autenticação TypeScript moderna e extensível' },
   { id: 'jwt', label: 'JWT (JSON Web Token)', description: 'Autenticação stateless por token Bearer' }
 ];
+
+export const LINTER_OPTIONS: OptionMeta<LinterOptionId>[] = [
+  { id: 'none', label: 'Padrão do framework', description: 'Sem linter/formatter extra' },
+  { id: 'biome', label: 'Biome', description: 'Linter e formatter ultrarrápido em arquivo único' },
+  { id: 'eslint-prettier', label: 'ESLint + Prettier', description: 'Padrão clássico JS/TS' }
+];
+
+export const LICENSE_OPTIONS: OptionMeta<LicenseOptionId>[] = [
+  { id: 'none', label: 'Sem licença', description: 'Não gerar arquivo LICENSE' },
+  { id: 'mit', label: 'MIT License', description: 'Permissiva e amplamente adotada em open source' },
+  { id: 'apache-2.0', label: 'Apache 2.0', description: 'Permissiva com proteção explícita de patentes' }
+];
+
+export const STACK_PRESETS: StackPresetItem[] = [
+  {
+    id: 'nextjs-fullstack',
+    name: 'Next.js Fullstack',
+    description: 'Next.js + TypeScript + SQLite + Prisma + Tailwind + Auth.js',
+    badge: 'Web',
+    stack: {
+      platform: 'web',
+      language: 'typescript',
+      frameworkId: 'nextjs',
+      database: 'sqlite',
+      orm: 'prisma',
+      styling: 'tailwind',
+      auth: 'authjs',
+      packageManager: 'pnpm',
+      versionMode: 'latest',
+      linter: 'biome',
+      license: 'mit',
+      includeTests: true,
+      includeCi: true
+    }
+  },
+  {
+    id: 'hono-api',
+    name: 'Hono API Moderna',
+    description: 'Hono + TypeScript + SQLite + Drizzle + Vitest',
+    badge: 'Backend',
+    stack: {
+      platform: 'backend',
+      language: 'typescript',
+      frameworkId: 'hono',
+      database: 'sqlite',
+      orm: 'drizzle',
+      styling: 'none',
+      auth: 'jwt',
+      packageManager: 'npm',
+      versionMode: 'latest',
+      linter: 'biome',
+      license: 'mit',
+      includeTests: true,
+      includeCi: true
+    }
+  },
+  {
+    id: 'nestjs-enterprise',
+    name: 'NestJS Enterprise',
+    description: 'NestJS + TypeScript + PostgreSQL + Prisma + Docker + CI',
+    badge: 'Backend',
+    stack: {
+      platform: 'backend',
+      language: 'typescript',
+      frameworkId: 'nestjs',
+      database: 'postgresql',
+      orm: 'prisma',
+      styling: 'none',
+      auth: 'jwt',
+      packageManager: 'npm',
+      versionMode: 'latest',
+      linter: 'eslint-prettier',
+      license: 'mit',
+      includeDocker: true,
+      includeTests: true,
+      includeCi: true
+    }
+  },
+  {
+    id: 'react-vite-spa',
+    name: 'React + Vite SPA',
+    description: 'React + TypeScript + Vite + Tailwind + Vitest',
+    badge: 'Web',
+    stack: {
+      platform: 'web',
+      language: 'typescript',
+      frameworkId: 'vite-react',
+      database: 'none',
+      orm: 'none',
+      styling: 'tailwind',
+      auth: 'none',
+      packageManager: 'npm',
+      versionMode: 'latest',
+      linter: 'biome',
+      license: 'mit',
+      includeTests: true
+    }
+  },
+  {
+    id: 'fastapi-python',
+    name: 'FastAPI Python',
+    description: 'FastAPI + Python + SQLite + SQLModel + Pytest + Docker',
+    badge: 'Python',
+    stack: {
+      platform: 'backend',
+      language: 'python',
+      frameworkId: 'fastapi',
+      database: 'sqlite',
+      orm: 'sqlmodel',
+      styling: 'none',
+      auth: 'jwt',
+      packageManager: 'npm',
+      versionMode: 'latest',
+      license: 'mit',
+      includeDocker: true,
+      includeTests: true,
+      includeCi: true
+    }
+  },
+  {
+    id: 'node-cli-ready',
+    name: 'Node CLI Pronto',
+    description: 'CLI Node.js zero-dependência + node:test + Biome + MIT',
+    badge: 'CLI',
+    stack: {
+      platform: 'cli',
+      language: 'javascript',
+      frameworkId: 'node-cli',
+      database: 'none',
+      orm: 'none',
+      styling: 'none',
+      auth: 'none',
+      packageManager: 'npm',
+      versionMode: 'latest',
+      linter: 'biome',
+      license: 'mit',
+      includeTests: true,
+      includeCi: true
+    }
+  }
+];
+
+export function getPresetById(id: string): StackPresetItem | undefined {
+  return STACK_PRESETS.find((p) => p.id === id);
+}
 
 export const FRAMEWORK_CATALOG: FrameworkCatalogItem[] = [
   {

@@ -182,24 +182,22 @@ export async function executeCreateProject(
         fsOps.mkdirSync(plan.targetDir, { recursive: true });
       }
 
-      if (plan.files.length > 0) {
-        stepIdx += 1;
-        emit(
-          onProgress,
-          'writing-files',
-          `Gerando ${plan.files.length} arquivo(s) da stack...`,
-          stepIdx,
-          totalSteps,
-          'system'
-        );
-        for (const file of plan.files) {
-          const fullPath = path.join(plan.targetDir, file.relativePath);
-          const dir = path.dirname(fullPath);
-          if (!fsOps.existsSync(dir)) {
-            fsOps.mkdirSync(dir, { recursive: true });
-          }
-          fsOps.writeFileSync(fullPath, file.content, 'utf-8');
+      stepIdx += 1;
+      emit(
+        onProgress,
+        'writing-files',
+        `Gerando ${plan.files.length} arquivo(s) da stack...`,
+        stepIdx,
+        totalSteps,
+        'system'
+      );
+      for (const file of plan.files) {
+        const fullPath = path.join(plan.targetDir, file.relativePath);
+        const dir = path.dirname(fullPath);
+        if (!fsOps.existsSync(dir)) {
+          fsOps.mkdirSync(dir, { recursive: true });
         }
+        fsOps.writeFileSync(fullPath, file.content, 'utf-8');
       }
 
       const startIdx = hasParentScaffold ? 1 : 0;

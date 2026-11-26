@@ -22,6 +22,7 @@ import type {
 } from '../../shared/types';
 import { FRAMEWORK_CATALOG } from '../../shared/projectCatalog';
 import { executeCreateProject } from '../creator/projectScaffolder';
+import { checkCreatorPreflight } from '../creator/preflightCheck';
 import {
   fetchLiveStackMeta,
   listUserGitHubTemplates,
@@ -626,6 +627,10 @@ export function registerIpcHandlers(
       resolvedMeta = metaMap[input.stack.frameworkId] ?? null;
     }
     return buildScaffoldPlan(input, resolvedMeta);
+  });
+
+  ipcMain.handle('creator:preflight', async (_event, input: CreateProjectInput) => {
+    return checkCreatorPreflight(input);
   });
 
   ipcMain.handle('creator:createProject', async (event, input: CreateProjectInput) => {
